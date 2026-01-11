@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Editor from '@monaco-editor/react'
 import { supabase, Problem, Match } from '@/lib/supabase'
@@ -44,6 +44,7 @@ export default function RacePage() {
   const timerInterval = useRef<NodeJS.Timeout>()
   const botTimeout = useRef<NodeJS.Timeout>()
   const completionCheckInterval = useRef<NodeJS.Timeout>()
+  const handleSubmitRef = useRef<() => Promise<void>>()
 
   useEffect(() => {
     loadMatch()
@@ -52,7 +53,7 @@ export default function RacePage() {
     const handleKeyboard = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault()
-        handleSubmit()
+        handleSubmitRef.current?.()
       }
     }
 
@@ -117,6 +118,7 @@ export default function RacePage() {
       if (botTimeout.current) clearTimeout(botTimeout.current)
       if (completionCheckInterval.current) clearInterval(completionCheckInterval.current)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId, router])
 
   const loadMatch = async () => {
@@ -267,7 +269,7 @@ export default function RacePage() {
     }
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!problem || !match || isSubmitting || hasSubmitted) return
 
     setIsSubmitting(true)
@@ -371,7 +373,12 @@ export default function RacePage() {
     } finally {
       setIsSubmitting(false)
     }
-  }
+  }, [problem, match, isSubmitting, hasSubmitted, code, language, playerRole, matchId, router])
+
+  // Update ref whenever handleSubmit changes
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit
+  }, [handleSubmit])
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000)

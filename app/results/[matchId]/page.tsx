@@ -18,6 +18,7 @@ export default function ResultsPage() {
 
   useEffect(() => {
     loadResults()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId])
 
   const loadResults = async () => {

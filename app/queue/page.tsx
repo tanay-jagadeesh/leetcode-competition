@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
 import { supabase } from '@/lib/supabase'
@@ -8,7 +8,7 @@ import { getPlayerId, setCurrentMatchId } from '@/lib/session'
 
 type MatchMode = 'pvp' | 'bot' | null
 
-export default function QueuePage() {
+function QueueContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [waitTime, setWaitTime] = useState(0)
@@ -306,5 +306,17 @@ export default function QueuePage() {
         )}
       </div>
     </main>
+  )
+}
+
+export default function QueuePage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="text-sub">Loading...</div>
+      </main>
+    }>
+      <QueueContent />
+    </Suspense>
   )
 }
