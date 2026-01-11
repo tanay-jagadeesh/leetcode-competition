@@ -11,7 +11,7 @@ export default function QueuePage() {
   const [waitTime, setWaitTime] = useState(0)
   const [playerId] = useState(() => getPlayerId())
   const [matchId, setMatchId] = useState<string | null>(null)
-  const [status, setStatus] = useState<'searching' | 'matched' | 'creating'>('searching')
+  const [status, setStatus] = useState<'searching' | 'matched'>('searching')
 
   useEffect(() => {
     let timer: NodeJS.Timeout
@@ -20,7 +20,6 @@ export default function QueuePage() {
 
     const findMatch = async () => {
       try {
-        // First, try to join an existing waiting match
         const { data: waitingMatches } = await supabase
           .from('matches')
           .select('*')
@@ -30,7 +29,6 @@ export default function QueuePage() {
           .limit(1)
 
         if (waitingMatches && waitingMatches.length > 0) {
-          // Join existing match
           const match = waitingMatches[0]
           const { error } = await supabase
             .from('matches')
@@ -43,12 +41,11 @@ export default function QueuePage() {
           if (!error) {
             setStatus('matched')
             setCurrentMatchId(match.id)
-            setTimeout(() => router.push(`/race/${match.id}`), 1000)
+            setTimeout(() => router.push(`/race/${match.id}`), 800)
             return
           }
         }
 
-        // No existing match, create a new one
         const { data: problems } = await supabase
           .from('problems')
           .select('id')
@@ -75,7 +72,6 @@ export default function QueuePage() {
         setMatchId(newMatch.id)
         setCurrentMatchId(newMatch.id)
 
-        // Subscribe to match updates
         channel = supabase
           .channel(`match:${newMatch.id}`)
           .on(
@@ -91,40 +87,28 @@ export default function QueuePage() {
               if (updatedMatch.status === 'active' && updatedMatch.player2_id) {
                 setStatus('matched')
                 channel.unsubscribe()
-                setTimeout(() => router.push(`/race/${newMatch.id}`), 1000)
+                setTimeout(() => router.push(`/race/${newMatch.id}`), 800)
               }
             }
           )
           .subscribe()
 
-        // After 30 seconds, match with a bot
         botTimeout = setTimeout(async () => {
           const botId = `bot_${uuidv4()}`
-
           try {
-            const { error } = await supabase
+            await supabase
               .from('matches')
               .update({
                 player2_id: botId,
                 status: 'active'
               })
               .eq('id', newMatch.id)
-
-            if (error) {
-              console.error('Bot match error:', error)
-            }
-
-            // Redirect regardless (optimistic)
-            setStatus('matched')
-            setCurrentMatchId(newMatch.id)
-            setTimeout(() => router.push(`/race/${newMatch.id}`), 1000)
           } catch (err) {
             console.error('Bot match failed:', err)
-            // Still try to redirect
-            setStatus('matched')
-            setCurrentMatchId(newMatch.id)
-            setTimeout(() => router.push(`/race/${newMatch.id}`), 1000)
           }
+          setStatus('matched')
+          setCurrentMatchId(newMatch.id)
+          setTimeout(() => router.push(`/race/${newMatch.id}`), 800)
         }, 30000)
 
       } catch (error) {
@@ -134,7 +118,6 @@ export default function QueuePage() {
 
     findMatch()
 
-    // Wait time counter
     timer = setInterval(() => {
       setWaitTime(t => t + 1)
     }, 1000)
@@ -148,7 +131,6 @@ export default function QueuePage() {
 
   const handleCancel = () => {
     if (matchId) {
-      // Delete the match if we created it
       supabase
         .from('matches')
         .delete()
@@ -161,63 +143,67 @@ export default function QueuePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-dark-300 via-dark-200 to-dark-100 flex items-center justify-center">
-      <div className="text-center">
-        {/* Animated Spinner */}
-        <div className="mb-8 flex justify-center">
-          <div className="relative w-32 h-32">
-            <div className="absolute inset-0 border-8 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <div className="absolute inset-4 border-8 border-secondary border-t-transparent rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1s' }}></div>
+    <main className="min-h-screen bg-base flex items-center justify-center px-6">
+      <div className="max-w-lg w-full">
+        {/* Status header */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full border-2 border-accent relative">
+            <div className="absolute inset-0 rounded-full border-2 border-accent animate-ping opacity-20"></div>
+            <div className="w-2 h-2 bg-accent rounded-full"></div>
           </div>
+
+          <h1 className="text-2xl mb-3">
+            {status === 'searching' ? 'Finding opponent' : 'Match found'}
+          </h1>
+
+          {status === 'searching' ? (
+            <div className="space-y-2">
+              <p className="text-muted">
+                Searching for available players
+              </p>
+              <p className="text-sm text-subtle font-mono">
+                {waitTime}s{waitTime < 30 && ` • Bot match in ${30 - waitTime}s`}
+              </p>
+            </div>
+          ) : (
+            <p className="text-success">Starting match...</p>
+          )}
         </div>
 
-        {/* Status */}
-        <h1 className="text-4xl font-bold mb-4 text-white">
-          {status === 'searching' && 'Finding Opponent...'}
-          {status === 'matched' && '✓ Match Found!'}
-          {status === 'creating' && 'Creating Match...'}
-        </h1>
-
+        {/* Tips section */}
         {status === 'searching' && (
-          <>
-            <p className="text-xl text-gray-400 mb-2">
-              Searching for a worthy opponent
-            </p>
-            <p className="text-sm text-gray-500 mb-8">
-              {waitTime}s elapsed {waitTime < 30 && `• Bot match in ${30 - waitTime}s`}
-            </p>
-          </>
+          <div className="card p-6 space-y-4">
+            <h3 className="text-sm uppercase tracking-wider text-subtle">Before you start</h3>
+            <ul className="space-y-3 text-sm text-muted">
+              <li className="flex gap-3">
+                <span className="text-subtle">—</span>
+                <span>Read constraints carefully before implementing</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-subtle">—</span>
+                <span>Run tests frequently to catch errors early</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-subtle">—</span>
+                <span>Submit only when all sample tests pass</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-subtle">—</span>
+                <span>Use Ctrl+Enter (Cmd+Enter on Mac) to submit</span>
+              </li>
+            </ul>
+          </div>
         )}
 
-        {status === 'matched' && (
-          <p className="text-xl text-green-400 mb-8">
-            Preparing your race...
-          </p>
-        )}
-
-        {/* Cancel Button */}
+        {/* Cancel button */}
         {status === 'searching' && (
-          <button
-            onClick={handleCancel}
-            className="px-8 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-        )}
-
-        {/* Tips */}
-        {status === 'searching' && (
-          <div className="mt-16 max-w-md mx-auto">
-            <div className="bg-dark-200 p-6 rounded-xl border-gradient">
-              <h3 className="text-lg font-bold mb-3 text-white">Quick Tips</h3>
-              <ul className="text-left text-gray-400 space-y-2 text-sm">
-                <li>• Read the problem carefully before coding</li>
-                <li>• Use &quot;Run Tests&quot; to check sample cases</li>
-                <li>• Submit when all tests pass</li>
-                <li>• Speed matters - but correctness matters more</li>
-                <li>• Press Ctrl+Enter to submit quickly</li>
-              </ul>
-            </div>
+          <div className="mt-8 text-center">
+            <button
+              onClick={handleCancel}
+              className="btn-secondary text-sm"
+            >
+              Cancel search
+            </button>
           </div>
         )}
       </div>

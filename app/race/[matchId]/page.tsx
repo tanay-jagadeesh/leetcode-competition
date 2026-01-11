@@ -6,7 +6,13 @@ import Editor from '@monaco-editor/react'
 import { supabase, Problem, Match } from '@/lib/supabase'
 import { executeCode, TestResult } from '@/lib/code-executor'
 import { getPlayerId } from '@/lib/session'
-import { getHint } from '@/lib/ai-hints'
+import { getHint, chatWithAI } from '@/lib/ai-hints'
+
+type ChatMessage = {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: number
+}
 
 export default function RacePage() {
   const router = useRouter()
@@ -27,6 +33,13 @@ export default function RacePage() {
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [playerRole, setPlayerRole] = useState<'player1' | 'player2'>('player1')
 
+  // Chat state
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
   const startTime = useRef<number>(Date.now())
   const timerInterval = useRef<NodeJS.Timeout>()
   const botTimeout = useRef<NodeJS.Timeout>()
@@ -35,7 +48,6 @@ export default function RacePage() {
     loadMatch()
     startTimer()
 
-    // Keyboard shortcuts
     const handleKeyboard = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault()
@@ -45,7 +57,6 @@ export default function RacePage() {
 
     window.addEventListener('keydown', handleKeyboard)
 
-    // Subscribe to match updates
     const channel = supabase
       .channel(`match:${matchId}`)
       .on(
@@ -61,7 +72,6 @@ export default function RacePage() {
           setMatch(updatedMatch)
           updateOpponentStatus(updatedMatch)
 
-          // If both submitted, go to results
           if (updatedMatch.status === 'completed') {
             setTimeout(() => router.push(`/results/${matchId}`), 2000)
           }
@@ -90,7 +100,6 @@ export default function RacePage() {
       const currentMatch = matchData as any
       setMatch(currentMatch)
 
-      // Determine player role
       const currentPlayerId = getPlayerId()
       const role = currentPlayerId === currentMatch.player2_id ? 'player2' : 'player1'
       setPlayerRole(role)
@@ -99,7 +108,6 @@ export default function RacePage() {
       setProblem(problemData)
       setCode(problemData.starter_code[language] || '')
 
-      // If opponent is a bot, schedule bot submission
       const opponentId = role === 'player1' ? currentMatch.player2_id : currentMatch.player1_id
       if (opponentId?.startsWith('bot_')) {
         scheduleBotSubmission(currentMatch)
@@ -111,38 +119,19 @@ export default function RacePage() {
   }
 
   const scheduleBotSubmission = (currentMatch: any) => {
-    // Bot has variable skill level - sometimes fast, sometimes slow
-    // This creates competitive matches where you can win or lose
-    const botSkillMultiplier = 0.5 + Math.random() * 1.0 // 0.5x to 1.5x speed
-
-    // Bot "codes" for 20-40 seconds (shows as coding)
+    const botSkillMultiplier = 0.5 + Math.random() * 1.0
     const codingDelay = (20000 + Math.random() * 20000) * botSkillMultiplier
-
-    // Then "tests" for 5-10 seconds
     const testingDelay = codingDelay + (5000 + Math.random() * 5000)
-
-    // Then submits after total of 30-90 seconds (more realistic range)
     const botDelay = (30000 + Math.random() * 60000) * botSkillMultiplier
 
-    // Simulate coding phase
-    setTimeout(() => {
-      setOpponentStatus('coding')
-    }, 3000)
+    setTimeout(() => setOpponentStatus('coding'), 3000)
+    setTimeout(() => setOpponentStatus('testing'), testingDelay)
 
-    // Simulate testing phase
-    setTimeout(() => {
-      setOpponentStatus('testing')
-    }, testingDelay)
-
-    // Submit with actual code execution
     botTimeout.current = setTimeout(async () => {
       const botTime = Math.floor(botDelay)
       const role = playerRole === 'player1' ? 'player2' : 'player1'
-
       setOpponentStatus('submitted')
 
-      // Bot always passes (submits correct solution)
-      // Update the match with bot's results
       await supabase
         .from('matches')
         .update({
@@ -151,7 +140,6 @@ export default function RacePage() {
         })
         .eq('id', matchId)
 
-      // Check if player has also submitted to determine winner
       const { data: updatedMatch } = await supabase
         .from('matches')
         .select('*')
@@ -164,7 +152,6 @@ export default function RacePage() {
           updatedMatch.player2_passed !== null
 
         if (bothSubmitted) {
-          // Determine winner based on time and correctness
           let winner: 'player1' | 'player2' | 'draw' = 'draw'
 
           if (updatedMatch.player1_passed && !updatedMatch.player2_passed) {
@@ -213,15 +200,13 @@ export default function RacePage() {
 
     setIsRunning(true)
     setOpponentStatus('testing')
-    setAiHint('') // Clear previous hints
+    setAiHint('')
 
     try {
-      // Run against sample test cases only
       const sampleTests = problem.test_cases.filter(tc => tc.is_sample)
       const result = await executeCode(code, language, sampleTests)
       setTestResults(result.results)
 
-      // If tests failed, get AI hint for the first failed test
       if (!result.allPassed) {
         const firstFailure = result.results.find(r => !r.passed)
         if (firstFailure) {
@@ -256,14 +241,12 @@ export default function RacePage() {
     setIsSubmitting(true)
 
     try {
-      // Run against ALL test cases
       const result = await executeCode(code, language, problem.test_cases)
       setTestResults(result.results)
 
       const currentTime = Date.now() - startTime.current
       const allPassed = result.allPassed
 
-      // Update match with results
       const { error } = await supabase
         .from('matches')
         .update({
@@ -276,7 +259,6 @@ export default function RacePage() {
 
       setHasSubmitted(true)
 
-      // Check if match is complete
       const { data: updatedMatch } = await supabase
         .from('matches')
         .select('*')
@@ -289,7 +271,6 @@ export default function RacePage() {
           updatedMatch.player2_passed !== null
 
         if (bothSubmitted) {
-          // Determine winner
           let winner: 'player1' | 'player2' | 'draw' = 'draw'
 
           if (updatedMatch.player1_passed && !updatedMatch.player2_passed) {
@@ -308,7 +289,6 @@ export default function RacePage() {
             })
             .eq('id', matchId)
 
-          // Add to leaderboard if passed
           if (allPassed) {
             await supabase
               .from('leaderboard')
@@ -334,144 +314,187 @@ export default function RacePage() {
     const totalSeconds = Math.floor(ms / 1000)
     const minutes = Math.floor(totalSeconds / 60)
     const seconds = totalSeconds % 60
-    const milliseconds = Math.floor((ms % 1000) / 10)
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
   }
+
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || !problem || isSendingMessage) return
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: chatInput.trim(),
+      timestamp: Date.now()
+    }
+
+    setChatMessages(prev => [...prev, userMessage])
+    setChatInput('')
+    setIsSendingMessage(true)
+
+    try {
+      const response = await chatWithAI(
+        problem.title,
+        problem.description,
+        code,
+        userMessage.content,
+        chatMessages
+      )
+
+      const assistantMessage: ChatMessage = {
+        role: 'assistant',
+        content: response,
+        timestamp: Date.now()
+      }
+
+      setChatMessages(prev => [...prev, assistantMessage])
+    } catch (error) {
+      console.error('Error sending message:', error)
+    } finally {
+      setIsSendingMessage(false)
+    }
+  }
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
 
   if (!problem || !match) {
     return (
-      <div className="min-h-screen bg-dark-300 flex items-center justify-center">
-        <div className="text-2xl text-white">Loading race...</div>
+      <div className="min-h-screen bg-base flex items-center justify-center">
+        <div className="text-muted">Loading match...</div>
       </div>
     )
   }
 
+  const opponentStatusText = {
+    waiting: 'Waiting',
+    coding: 'Coding',
+    testing: 'Testing',
+    submitted: 'Submitted'
+  }
+
   return (
-    <div className="h-screen bg-dark-300 flex flex-col">
-      {/* Top Bar */}
-      <div className="bg-dark-200 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <div className="text-3xl font-bold text-gradient">
-            {formatTime(timer)}
-          </div>
-          <div className="h-8 w-px bg-gray-700"></div>
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${
-              opponentStatus === 'coding' ? 'bg-blue-400 animate-pulse' :
-              opponentStatus === 'testing' ? 'bg-yellow-400 animate-pulse' :
-              opponentStatus === 'submitted' ? 'bg-green-400' : 'bg-gray-500'
-            }`}></div>
-            <span className="text-gray-300">
-              Opponent: {
-                opponentStatus === 'coding' ? '💻 Coding...' :
-                opponentStatus === 'testing' ? '🧪 Testing...' :
-                opponentStatus === 'submitted' ? '✓ Submitted!' : 'Waiting...'
-              }
-            </span>
+    <div className="h-screen bg-base flex flex-col">
+      {/* Top bar */}
+      <header className="border-b border-base-lighter px-6 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-8">
+          <div className="font-mono text-lg font-medium">{formatTime(timer)}</div>
+          <div className="h-4 w-px bg-base-lighter"></div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className={`status-dot ${
+              opponentStatus === 'coding' ? 'bg-accent' :
+              opponentStatus === 'testing' ? 'bg-warning' :
+              opponentStatus === 'submitted' ? 'bg-success' : 'bg-stone-600'
+            }`}></span>
+            <span className="text-muted">Opponent: {opponentStatusText[opponentStatus]}</span>
           </div>
         </div>
         {hasSubmitted && (
-          <div className="text-yellow-400 font-semibold">
-            ⏳ Waiting for opponent...
-          </div>
+          <div className="text-sm text-warning">Waiting for opponent</div>
         )}
-      </div>
+      </header>
 
-      {/* Main Content */}
+      {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Problem Statement */}
-        <div className="w-1/2 border-r border-gray-700 overflow-y-auto p-6">
-          <h1 className="text-3xl font-bold text-white mb-2">{problem.title}</h1>
-          <div className="mb-4">
-            <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
-              problem.difficulty === 'easy' ? 'bg-green-900 text-green-300' :
-              problem.difficulty === 'medium' ? 'bg-yellow-900 text-yellow-300' :
-              'bg-red-900 text-red-300'
-            }`}>
-              {problem.difficulty.toUpperCase()}
-            </span>
-          </div>
-
-          <div className="prose prose-invert max-w-none">
-            <div className="text-gray-300 whitespace-pre-wrap mb-6">
-              {problem.description}
+        {/* Left panel - Problem */}
+        <div className={`${isChatOpen ? 'w-1/3' : 'w-1/2'} border-r border-base-lighter overflow-y-auto transition-all duration-300`}>
+          <div className="p-8 max-w-2xl">
+            {/* Problem header */}
+            <div className="mb-8">
+              <h1 className="text-2xl mb-3">{problem.title}</h1>
+              <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${
+                problem.difficulty === 'easy' ? 'bg-success/20 text-success' :
+                problem.difficulty === 'medium' ? 'bg-warning/20 text-warning' :
+                'bg-error/20 text-error'
+              }`}>
+                {problem.difficulty}
+              </span>
             </div>
 
-            <h3 className="text-xl font-bold text-white mb-3">Constraints</h3>
-            <div className="text-gray-300 whitespace-pre-wrap mb-6">
-              {problem.constraints}
-            </div>
+            {/* Description */}
+            <div className="space-y-6 text-sm text-muted">
+              <div className="whitespace-pre-wrap leading-relaxed">
+                {problem.description}
+              </div>
 
-            <h3 className="text-xl font-bold text-white mb-3">Sample Test Cases</h3>
-            <div className="space-y-3">
-              {problem.test_cases.filter(tc => tc.is_sample).map((tc, idx) => (
-                <div key={idx} className="bg-dark-200 p-4 rounded-lg border border-gray-700">
-                  <div className="text-sm text-gray-400 mb-1">Input:</div>
-                  <code className="text-green-400">{JSON.stringify(tc.input)}</code>
-                  <div className="text-sm text-gray-400 mt-2 mb-1">Expected Output:</div>
-                  <code className="text-blue-400">{JSON.stringify(tc.expected_output)}</code>
+              <div>
+                <h3 className="text-stone-200 mb-2 text-xs uppercase tracking-wider">Constraints</h3>
+                <div className="whitespace-pre-wrap text-subtle leading-relaxed">
+                  {problem.constraints}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          {/* AI Hint */}
-          {(aiHint || isLoadingHint) && (
-            <div className="mt-6">
-              <div className="bg-blue-900/20 border border-blue-700 p-4 rounded-lg">
-                <div className="flex items-start gap-2 mb-2">
-                  <span className="text-2xl">💡</span>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-blue-300 mb-2">AI Hint</h3>
+              <div>
+                <h3 className="text-stone-200 mb-3 text-xs uppercase tracking-wider">Examples</h3>
+                <div className="space-y-3">
+                  {problem.test_cases.filter(tc => tc.is_sample).map((tc, idx) => (
+                    <div key={idx} className="card p-4 font-mono text-xs space-y-2">
+                      <div>
+                        <span className="text-subtle">Input:</span>{' '}
+                        <span className="text-stone-200">{JSON.stringify(tc.input)}</span>
+                      </div>
+                      <div>
+                        <span className="text-subtle">Output:</span>{' '}
+                        <span className="text-stone-200">{JSON.stringify(tc.expected_output)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* AI Hint */}
+            {(aiHint || isLoadingHint) && (
+              <div className="mt-8 card p-4 border-accent/30">
+                <div className="flex items-start gap-3">
+                  <span className="text-accent text-sm">→</span>
+                  <div className="flex-1 space-y-2">
+                    <div className="text-xs uppercase tracking-wider text-accent">Hint</div>
                     {isLoadingHint ? (
-                      <div className="text-gray-400 italic">Getting hint from AI...</div>
+                      <div className="text-sm text-subtle italic">Generating hint...</div>
                     ) : (
-                      <p className="text-gray-300">{aiHint}</p>
+                      <p className="text-sm text-muted leading-relaxed">{aiHint}</p>
                     )}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Test Results */}
-          {testResults.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-xl font-bold text-white mb-3">Test Results</h3>
-              <div className="space-y-2">
+            {/* Test results */}
+            {testResults.length > 0 && (
+              <div className="mt-8 space-y-2">
                 {testResults.map((result, idx) => (
                   <div
                     key={idx}
-                    className={`p-3 rounded-lg border ${
+                    className={`card p-3 border ${
                       result.passed
-                        ? 'bg-green-900/20 border-green-700'
-                        : 'bg-red-900/20 border-red-700'
+                        ? 'border-success/30 bg-success/5'
+                        : 'border-error/30 bg-error/5'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={result.passed ? 'text-green-400' : 'text-red-400'}>
-                        {result.passed ? '✓' : '✗'}
-                      </span>
-                      <span className="font-semibold text-white">
-                        Test {idx + 1}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-subtle">Test {idx + 1}</span>
+                      <span className={`text-xs font-medium ${
+                        result.passed ? 'text-success' : 'text-error'
+                      }`}>
+                        {result.passed ? 'Passed' : 'Failed'}
                       </span>
                     </div>
                     {!result.passed && (
-                      <>
-                        <div className="text-sm text-gray-400">Input: {JSON.stringify(result.input)}</div>
-                        <div className="text-sm text-gray-400">Expected: {JSON.stringify(result.expected)}</div>
-                        <div className="text-sm text-gray-400">Got: {result.error || JSON.stringify(result.actual)}</div>
-                      </>
+                      <div className="font-mono text-xs text-muted space-y-1">
+                        <div>Input: {JSON.stringify(result.input)}</div>
+                        <div>Expected: {JSON.stringify(result.expected)}</div>
+                        <div>Got: {result.error || JSON.stringify(result.actual)}</div>
+                      </div>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Right: Code Editor */}
-        <div className="w-1/2 flex flex-col">
+        {/* Center panel - Editor */}
+        <div className={`${isChatOpen ? 'w-1/3' : 'w-1/2'} flex flex-col transition-all duration-300`}>
           <div className="flex-1 overflow-hidden">
             <Editor
               height="100%"
@@ -487,33 +510,138 @@ export default function RacePage() {
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
                 tabSize: 4,
+                fontFamily: 'ui-monospace, monospace',
+                padding: { top: 16 },
               }}
             />
           </div>
 
-          {/* Bottom Bar */}
-          <div className="bg-dark-200 border-t border-gray-700 p-4 flex items-center justify-between">
-            <div className="text-sm text-gray-400">
-              Language: Python
+          {/* Editor footer */}
+          <div className="border-t border-base-lighter p-4 flex items-center justify-between bg-base-light">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-subtle">Python</span>
+              <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className="text-xs text-accent hover:text-accent-light transition-colors"
+              >
+                {isChatOpen ? '← Close AI' : 'AI Assistant →'}
+              </button>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={handleRunTests}
                 disabled={isRunning || hasSubmitted}
-                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-secondary text-xs px-3 py-2"
               >
-                {isRunning ? 'Running...' : 'Run Tests'}
+                {isRunning ? 'Running...' : 'Run tests'}
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || hasSubmitted}
-                className="px-6 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg font-semibold glow-button disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary text-xs px-4 py-2"
               >
-                {isSubmitting ? 'Submitting...' : hasSubmitted ? 'Submitted!' : 'Submit'}
+                {isSubmitting ? 'Submitting...' : hasSubmitted ? 'Submitted' : 'Submit'}
               </button>
             </div>
           </div>
         </div>
+
+        {/* Right panel - AI Chat */}
+        {isChatOpen && (
+          <div className="w-1/3 border-l border-base-lighter flex flex-col bg-base-light">
+            {/* Chat header */}
+            <div className="border-b border-base-lighter p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-sm">AI Coding Assistant</h3>
+                  <p className="text-xs text-subtle mt-1">Ask questions about the problem</p>
+                </div>
+                <button
+                  onClick={() => setIsChatOpen(false)}
+                  className="text-subtle hover:text-stone-200 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Chat messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {chatMessages.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-4">💬</div>
+                  <p className="text-sm text-muted mb-2">No messages yet</p>
+                  <p className="text-xs text-subtle">
+                    Ask me anything about the problem
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {chatMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                          msg.role === 'user'
+                            ? 'bg-accent text-white'
+                            : 'bg-base border border-base-lighter text-stone-200'
+                        }`}
+                      >
+                        <p className="leading-relaxed">{msg.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {isSendingMessage && (
+                    <div className="flex justify-start">
+                      <div className="bg-base border border-base-lighter rounded-lg px-3 py-2">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-accent rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </>
+              )}
+            </div>
+
+            {/* Chat input */}
+            <div className="border-t border-base-lighter p-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSendMessage()
+                    }
+                  }}
+                  placeholder="Ask a question..."
+                  className="flex-1 input text-xs"
+                  disabled={isSendingMessage}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!chatInput.trim() || isSendingMessage}
+                  className="btn-primary px-3 py-2 text-xs"
+                >
+                  Send
+                </button>
+              </div>
+              <p className="text-xs text-subtle mt-2">
+                Press Enter to send
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -2,68 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@layer base {
+  * {
+    @apply border-stone-200;
+  }
+
+  body {
+    @apply bg-base text-stone-200 antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-stone-50 font-medium;
+  }
 }
 
-body {
-  background: #11111b;
-  color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+@layer components {
+  /* Button styles */
+  .btn-primary {
+    @apply px-4 py-2 bg-accent text-white font-medium text-sm rounded-md
+           hover:bg-accent-dark transition-colors duration-200
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
 
-code {
-  font-family: 'Fira Code', 'Courier New', monospace;
+  .btn-secondary {
+    @apply px-4 py-2 bg-base-lighter text-stone-200 font-medium text-sm rounded-md
+           hover:bg-base-lighter/80 transition-colors duration-200
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-base-light border border-base-lighter rounded-lg;
+  }
+
+  /* Status indicators */
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  /* Input styles */
+  .input {
+    @apply bg-base-lighter border border-base-lighter rounded-md px-3 py-2
+           text-stone-200 text-sm placeholder:text-stone-500
+           focus:outline-none focus:ring-2 focus:ring-accent/50;
+  }
 }
 
 @layer utilities {
-  .text-gradient {
-    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  /* Typography utilities */
+  .text-muted {
+    @apply text-stone-400;
   }
 
-  .border-gradient {
-    border: 2px solid transparent;
-    background-image: linear-gradient(#1e1e2e, #1e1e2e),
-                      linear-gradient(135deg, #2563eb, #1e40af);
-    background-origin: border-box;
-    background-clip: padding-box, border-box;
-  }
-
-  .glow-button {
-    box-shadow: 0 0 20px rgba(37, 99, 235, 0.3);
-    transition: all 0.2s ease;
-  }
-
-  .glow-button:hover {
-    box-shadow: 0 0 40px rgba(37, 99, 235, 0.6);
-    transform: translateY(-2px);
+  .text-subtle {
+    @apply text-stone-500;
   }
 }
 
-/* Scrollbar */
+/* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #181825;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2563eb;
-  border-radius: 4px;
+  background: #44403c;
+  border-radius: 5px;
+  border: 2px solid #1c1917;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #1e40af;
+  background: #57534e;
+}
+
+/* Selection */
+::selection {
+  background: #64748b;
+  color: white;
 }
