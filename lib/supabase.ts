@@ -57,4 +57,19 @@ export type UserProfile = {
   created_at: string
   updated_at: string
   last_seen?: string
+  badges?: string[]
+}
+
+export type DailyRanking = {
+  id: string
+  user_id: string
+  date: string
+  daily_points: number
+  daily_matches_won: number
+  daily_matches_played: number
+  rank: number | null
+  percentile: number | null
+  badge: string | null
+  created_at: string
+  updated_at: string
 }

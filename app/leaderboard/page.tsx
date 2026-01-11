@@ -164,6 +164,24 @@ export default function LeaderboardPage() {
                         {profile.id === currentUserProfile?.id && (
                           <span className="text-xs px-2 py-1 bg-accent/10 text-accent rounded font-medium">You</span>
                         )}
+                        {profile.badges && profile.badges.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            {profile.badges.map((badge, idx) => {
+                              const badgeInfo: Record<string, { icon: string; color: string }> = {
+                                top_1: { icon: '👑', color: 'text-yellow-600' },
+                                top_5: { icon: '💎', color: 'text-purple-600' },
+                                top_10: { icon: '⭐', color: 'text-blue-600' },
+                                top_25: { icon: '🏆', color: 'text-green-600' },
+                              }
+                              const info = badgeInfo[badge] || { icon: '🏅', color: 'text-sub' }
+                              return (
+                                <span key={idx} className={`text-sm ${info.color}`} title={badge.replace('_', ' ')}>
+                                  {info.icon}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="p-5 text-right font-mono text-accent font-semibold">{profile.total_points}</td>

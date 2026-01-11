@@ -165,7 +165,7 @@ export default function Home() {
           </p>
 
           {/* Points Display - Always Visible */}
-          <div className="inline-flex items-center gap-6 px-6 py-4 mb-12 bg-card border border-border rounded-lg shadow-sm">
+          <div className="inline-flex items-center gap-6 px-6 py-4 mb-8 bg-card border border-border rounded-lg shadow-sm">
             <div className="text-center">
               <div className="text-xs uppercase tracking-wider text-sub font-medium mb-1">Your Points</div>
               <div className="text-3xl font-mono text-accent font-bold tabular-nums">
@@ -180,6 +180,21 @@ export default function Home() {
               </div>
               <div className="text-[10px] text-sub mt-0.5">5 points per hint</div>
             </div>
+          </div>
+
+          {/* Daily Ladder CTA */}
+          <div className="mb-12">
+            <button
+              onClick={() => router.push('/daily-ladder')}
+              className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-accent to-accent/80 text-white font-semibold rounded-lg shadow-lg shadow-accent/20 hover:shadow-xl hover:shadow-accent/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span className="text-lg">🏆</span>
+              <div className="text-left">
+                <div className="text-sm font-bold">Daily Ranked Ladder</div>
+                <div className="text-xs opacity-90">Compete for top % badges</div>
+              </div>
+              <span className="ml-2">→</span>
+            </button>
           </div>
 
           <div className="flex items-center justify-center gap-4 mb-8">
