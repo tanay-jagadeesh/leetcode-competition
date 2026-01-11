@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
 import { supabase } from '@/lib/supabase'
@@ -13,24 +13,31 @@ export default function QueuePage() {
   const [matchId, setMatchId] = useState<string | null>(null)
   const [status, setStatus] = useState<'searching' | 'matched'>('searching')
   const [allowBotMatch, setAllowBotMatch] = useState(true)
+  const channelRef = useRef<any>(null)
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     let timer: NodeJS.Timeout
     let botTimeout: NodeJS.Timeout
-    let channel: any
+    let isActive = true
 
-    const findMatch = async () => {
+    const tryJoinExistingMatch = async () => {
+      if (!isActive) return false
+
       try {
         const { data: waitingMatches } = await supabase
           .from('matches')
           .select('*')
           .eq('status', 'waiting')
           .is('player2_id', null)
+          .neq('player1_id', playerId) // Don't join own match
           .order('created_at', { ascending: true })
           .limit(1)
 
         if (waitingMatches && waitingMatches.length > 0) {
           const match = waitingMatches[0]
+
+          // Try to claim this match
           const { error } = await supabase
             .from('matches')
             .update({
@@ -38,15 +45,26 @@ export default function QueuePage() {
               status: 'active'
             })
             .eq('id', match.id)
+            .is('player2_id', null) // Only if still available
 
           if (!error) {
             setStatus('matched')
             setCurrentMatchId(match.id)
             setTimeout(() => router.push(`/race/${match.id}`), 800)
-            return
+            return true
           }
         }
+      } catch (error) {
+        console.error('Error joining match:', error)
+      }
 
+      return false
+    }
+
+    const createMatch = async () => {
+      if (!isActive) return
+
+      try {
         const { data: problems } = await supabase
           .from('problems')
           .select('id')
@@ -73,7 +91,8 @@ export default function QueuePage() {
         setMatchId(newMatch.id)
         setCurrentMatchId(newMatch.id)
 
-        channel = supabase
+        // Subscribe to match updates
+        const channel = supabase
           .channel(`match:${newMatch.id}`)
           .on(
             'postgres_changes',
@@ -88,15 +107,22 @@ export default function QueuePage() {
               if (updatedMatch.status === 'active' && updatedMatch.player2_id) {
                 setStatus('matched')
                 channel.unsubscribe()
+                if (pollingRef.current) {
+                  clearInterval(pollingRef.current)
+                }
                 setTimeout(() => router.push(`/race/${newMatch.id}`), 800)
               }
             }
           )
           .subscribe()
 
-        // Only set bot timeout if user allows bot matches
+        channelRef.current = channel
+
+        // Set bot timeout if allowed
         if (allowBotMatch) {
           botTimeout = setTimeout(async () => {
+            if (!isActive) return
+
             const botId = `bot_${uuidv4()}`
             try {
               await supabase
@@ -106,9 +132,11 @@ export default function QueuePage() {
                   status: 'active'
                 })
                 .eq('id', newMatch.id)
+                .eq('status', 'waiting') // Only if still waiting
             } catch (err) {
               console.error('Bot match failed:', err)
             }
+
             setStatus('matched')
             setCurrentMatchId(newMatch.id)
             setTimeout(() => router.push(`/race/${newMatch.id}`), 800)
@@ -116,22 +144,55 @@ export default function QueuePage() {
         }
 
       } catch (error) {
-        console.error('Error finding match:', error)
+        console.error('Error creating match:', error)
       }
     }
 
-    findMatch()
+    const startMatchmaking = async () => {
+      // First, try to join an existing match
+      const joined = await tryJoinExistingMatch()
 
+      if (!joined && isActive) {
+        // No existing match found, create one
+        await createMatch()
+
+        // Start polling for new waiting matches every 3 seconds
+        pollingRef.current = setInterval(async () => {
+          if (status === 'matched') {
+            if (pollingRef.current) {
+              clearInterval(pollingRef.current)
+            }
+            return
+          }
+
+          // Check if someone else created a match we can join
+          const joined = await tryJoinExistingMatch()
+          if (joined && pollingRef.current) {
+            clearInterval(pollingRef.current)
+          }
+        }, 3000)
+      }
+    }
+
+    startMatchmaking()
+
+    // Timer for display
     timer = setInterval(() => {
       setWaitTime(t => t + 1)
     }, 1000)
 
     return () => {
+      isActive = false
       clearInterval(timer)
       clearTimeout(botTimeout)
-      if (channel) channel.unsubscribe()
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+      }
+      if (channelRef.current) {
+        channelRef.current.unsubscribe()
+      }
     }
-  }, [playerId, router, allowBotMatch])
+  }, [playerId, router, allowBotMatch, status])
 
   const handleCancel = () => {
     if (matchId) {
@@ -140,6 +201,7 @@ export default function QueuePage() {
         .delete()
         .eq('id', matchId)
         .eq('player1_id', playerId)
+        .eq('status', 'waiting') // Only delete if still waiting
         .then(() => router.push('/'))
     } else {
       router.push('/')

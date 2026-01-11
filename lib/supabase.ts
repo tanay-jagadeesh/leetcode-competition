@@ -31,6 +31,8 @@ export type Match = {
   player2_time: number | null
   player1_passed: boolean | null
   player2_passed: boolean | null
+  player1_points: number | null
+  player2_points: number | null
   status: 'waiting' | 'active' | 'completed'
   winner: 'player1' | 'player2' | 'draw' | null
   created_at: string
@@ -43,4 +45,15 @@ export type LeaderboardEntry = {
   time_ms: number
   language: string
   created_at: string
+}
+
+export type UserProfile = {
+  id: string
+  username: string
+  total_points: number
+  matches_played: number
+  matches_won: number
+  problems_solved: number
+  created_at: string
+  updated_at: string
 }

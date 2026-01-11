@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, UserProfile } from '@/lib/supabase'
+import { getPlayerId } from '@/lib/session'
 
 export default function Home() {
   const router = useRouter()
   const [playersOnline, setPlayersOnline] = useState(0)
   const [recentMatches, setRecentMatches] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
     fetchStats()
+    fetchUserProfile()
     const interval = setInterval(fetchStats, 10000)
     return () => clearInterval(interval)
   }, [])
@@ -42,6 +45,23 @@ export default function Home() {
     }
   }
 
+  const fetchUserProfile = async () => {
+    try {
+      const userId = getPlayerId()
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (data) {
+        setUserProfile(data)
+      }
+    } catch (error) {
+      // User profile doesn't exist yet
+    }
+  }
+
   const handleFindMatch = async () => {
     setIsLoading(true)
     router.push('/queue')
@@ -56,9 +76,23 @@ export default function Home() {
       <header className="relative border-b border-base-border backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="text-xl font-bold text-gradient">CodeClash</div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="status-dot bg-success"></span>
-            <span className="text-gray-300">{playersOnline} online</span>
+          <div className="flex items-center gap-6">
+            {userProfile && (
+              <button
+                onClick={() => router.push('/leaderboard')}
+                className="flex items-center gap-3 px-4 py-2 rounded-lg bg-base-lighter border border-base-border hover:border-gray-600 transition-all"
+              >
+                <div className="text-right">
+                  <div className="text-xs text-subtle">Your points</div>
+                  <div className="text-sm font-mono text-accent font-semibold">{userProfile.total_points}</div>
+                </div>
+                <span className="text-subtle">→</span>
+              </button>
+            )}
+            <div className="flex items-center gap-2 text-sm">
+              <span className="status-dot bg-success"></span>
+              <span className="text-gray-300">{playersOnline} online</span>
+            </div>
           </div>
         </div>
       </header>

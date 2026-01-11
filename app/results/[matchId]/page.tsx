@@ -174,11 +174,10 @@ export default function ResultsPage() {
             <div className="text-xs text-subtle">Total time</div>
           </div>
           <div className="card p-4">
-            <div className="text-2xl font-mono mb-1">
-              {problem.difficulty === 'easy' ? '10' :
-               problem.difficulty === 'medium' ? '25' : '50'}
+            <div className="text-2xl font-mono mb-1 text-accent">
+              +{match[`${playerRole}_points`] || 0}
             </div>
-            <div className="text-xs text-subtle">Experience earned</div>
+            <div className="text-xs text-subtle">Points earned</div>
           </div>
         </div>
 
