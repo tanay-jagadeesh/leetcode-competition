@@ -36,7 +36,7 @@ export default function DailyLadderPage() {
           user_profiles (*)
         `)
         .eq('date', selectedDate)
-        .order('rank', { ascending: true, nullsLast: true })
+        .order('rank', { ascending: true })
         .limit(100)
 
       if (error) throw error
