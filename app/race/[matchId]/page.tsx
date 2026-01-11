@@ -6,6 +6,7 @@ import Editor from '@monaco-editor/react'
 import { supabase, Problem, Match } from '@/lib/supabase'
 import { executeCode, TestResult } from '@/lib/code-executor'
 import { getPlayerId } from '@/lib/session'
+import { getHint } from '@/lib/ai-hints'
 
 export default function RacePage() {
   const router = useRouter()
@@ -20,6 +21,8 @@ export default function RacePage() {
   const [isRunning, setIsRunning] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [testResults, setTestResults] = useState<TestResult[]>([])
+  const [aiHint, setAiHint] = useState<string>('')
+  const [isLoadingHint, setIsLoadingHint] = useState(false)
   const [opponentStatus, setOpponentStatus] = useState<'waiting' | 'coding' | 'testing' | 'submitted'>('waiting')
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [playerRole, setPlayerRole] = useState<'player1' | 'player2'>('player1')
@@ -210,12 +213,29 @@ export default function RacePage() {
 
     setIsRunning(true)
     setOpponentStatus('testing')
+    setAiHint('') // Clear previous hints
 
     try {
       // Run against sample test cases only
       const sampleTests = problem.test_cases.filter(tc => tc.is_sample)
       const result = await executeCode(code, language, sampleTests)
       setTestResults(result.results)
+
+      // If tests failed, get AI hint for the first failed test
+      if (!result.allPassed) {
+        const firstFailure = result.results.find(r => !r.passed)
+        if (firstFailure) {
+          setIsLoadingHint(true)
+          const hint = await getHint(
+            problem.title,
+            problem.description,
+            code,
+            firstFailure
+          )
+          setAiHint(hint)
+          setIsLoadingHint(false)
+        }
+      }
     } catch (error: any) {
       setTestResults([{
         passed: false,
@@ -394,6 +414,25 @@ export default function RacePage() {
               ))}
             </div>
           </div>
+
+          {/* AI Hint */}
+          {(aiHint || isLoadingHint) && (
+            <div className="mt-6">
+              <div className="bg-blue-900/20 border border-blue-700 p-4 rounded-lg">
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="text-2xl">💡</span>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-blue-300 mb-2">AI Hint</h3>
+                    {isLoadingHint ? (
+                      <div className="text-gray-400 italic">Getting hint from AI...</div>
+                    ) : (
+                      <p className="text-gray-300">{aiHint}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Test Results */}
           {testResults.length > 0 && (

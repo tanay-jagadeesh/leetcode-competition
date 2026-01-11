@@ -9,12 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: '#6366f1',
-        secondary: '#8b5cf6',
+        primary: '#2563eb', // Professional blue
+        secondary: '#1e40af', // Darker blue
+        accent: '#10b981', // Success green
+        warning: '#f59e0b', // Warm orange
         dark: {
-          100: '#1e1e2e',
-          200: '#181825',
-          300: '#11111b',
+          50: '#1f2937',
+          100: '#111827',
+          200: '#0f172a',
+          300: '#020617',
         },
       },
       animation: {
@@ -25,11 +28,11 @@ const config: Config = {
         'pulse-glow': {
           '0%, 100%': {
             opacity: '1',
-            boxShadow: '0 0 20px rgba(99, 102, 241, 0.5)',
+            boxShadow: '0 0 20px rgba(37, 99, 235, 0.4)',
           },
           '50%': {
-            opacity: '0.8',
-            boxShadow: '0 0 40px rgba(99, 102, 241, 0.8)',
+            opacity: '0.95',
+            boxShadow: '0 0 30px rgba(37, 99, 235, 0.6)',
           },
         },
         'slide-up': {

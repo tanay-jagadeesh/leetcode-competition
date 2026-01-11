@@ -74,14 +74,14 @@ export default function ResultsPage() {
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ['#6366f1', '#8b5cf6', '#a855f7'],
+        colors: ['#2563eb', '#10b981', '#1e40af'],
       })
       confetti({
         particleCount: 3,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ['#6366f1', '#8b5cf6', '#a855f7'],
+        colors: ['#2563eb', '#10b981', '#1e40af'],
       })
 
       if (Date.now() < end) {

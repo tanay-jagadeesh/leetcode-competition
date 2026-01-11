@@ -24,7 +24,7 @@ code {
 
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -33,18 +33,18 @@ code {
   .border-gradient {
     border: 2px solid transparent;
     background-image: linear-gradient(#1e1e2e, #1e1e2e),
-                      linear-gradient(135deg, #6366f1, #8b5cf6);
+                      linear-gradient(135deg, #2563eb, #1e40af);
     background-origin: border-box;
     background-clip: padding-box, border-box;
   }
 
   .glow-button {
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 20px rgba(37, 99, 235, 0.3);
     transition: all 0.2s ease;
   }
 
   .glow-button:hover {
-    box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+    box-shadow: 0 0 40px rgba(37, 99, 235, 0.6);
     transform: translateY(-2px);
   }
 }
@@ -60,10 +60,10 @@ code {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #6366f1;
+  background: #2563eb;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #8b5cf6;
+  background: #1e40af;
 }
