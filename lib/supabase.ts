@@ -56,4 +56,5 @@ export type UserProfile = {
   problems_solved: number
   created_at: string
   updated_at: string
+  last_seen?: string
 }

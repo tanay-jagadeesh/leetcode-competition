@@ -19,33 +19,33 @@ export async function chatWithAI(
   userQuestion: string,
   conversationHistory: Array<{ role: 'user' | 'assistant', content: string }>
 ): Promise<string> {
-  try {
-    const response = await fetch('/api/ai-chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        problemTitle,
-        problemDescription,
-        userCode,
-        userQuestion,
-        conversationHistory,
-        clientId: getPlayerId(), // Use player ID for rate limiting
-      }),
-    })
+  const response = await fetch('/api/ai-chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      problemTitle,
+      problemDescription,
+      userCode,
+      userQuestion,
+      conversationHistory,
+      clientId: getPlayerId(), // Use player ID for rate limiting
+    }),
+  })
 
-    const data = await response.json()
+  const data = await response.json()
 
-    if (!response.ok) {
-      return data.error || '❌ An error occurred. Please try again.'
-    }
-
-    return data.text
-  } catch (error) {
-    console.error('Error chatting with AI:', error)
-    return '❌ Network error. Please check your connection and try again.'
+  if (!response.ok) {
+    const errorMessage = data.error || '❌ An error occurred. Please try again.'
+    throw new Error(errorMessage)
   }
+
+  if (!data.text) {
+    throw new Error('❌ Invalid response from AI service. Please try again.')
+  }
+
+  return data.text
 }
 
 export async function getHint(

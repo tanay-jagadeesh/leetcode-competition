@@ -143,14 +143,34 @@ Provide helpful guidance without giving away the complete solution. Be concise (
     }
 
     const data = await response.json()
-    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text ||
+    
+    // Handle Gemini API response structure
+    if (!data.candidates || data.candidates.length === 0) {
+      console.error('Gemini API returned no candidates:', data)
+      return NextResponse.json(
+        { error: '❌ AI service returned an empty response. Please try again.' },
+        { status: 500 }
+      )
+    }
+
+    const candidate = data.candidates[0]
+    if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
+      console.error('Gemini API candidate has no content:', candidate)
+      return NextResponse.json(
+        { error: '❌ AI service returned invalid content. Please try again.' },
+        { status: 500 }
+      )
+    }
+
+    const responseText = candidate.content.parts[0].text ||
       'I can help you think through this problem. What specifically are you struggling with?'
 
     return NextResponse.json({ text: responseText.trim() })
   } catch (error) {
     console.error('Error in AI chat:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: '❌ An error occurred. Please try again.' },
+      { error: `❌ An error occurred: ${errorMessage}. Please try again.` },
       { status: 500 }
     )
   }

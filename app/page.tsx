@@ -12,26 +12,35 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
 
-  useEffect(() => {
-    fetchStats()
-    fetchUserProfile()
-    const interval = setInterval(fetchStats, 10000)
-    return () => clearInterval(interval)
-  }, [])
+  const updatePresence = async () => {
+    try {
+      const playerId = getPlayerId()
+      await fetch('/api/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId })
+      })
+    } catch (error) {
+      // Silently fail - presence tracking is not critical
+      console.error('Error updating presence:', error)
+    }
+  }
 
   const fetchStats = async () => {
     try {
-      const { data: activeMatches } = await supabase
-        .from('matches')
-        .select('player1_id, player2_id')
-        .eq('status', 'active')
+      // Count active users (users with last_seen within last 5 minutes)
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+      const { count, error: countError } = await supabase
+        .from('user_profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('last_seen', fiveMinutesAgo)
 
-      let realPlayers = 0
-      activeMatches?.forEach(match => {
-        if (!match.player1_id.startsWith('bot_')) realPlayers++
-        if (match.player2_id && !match.player2_id.startsWith('bot_')) realPlayers++
-      })
-      setPlayersOnline(realPlayers)
+      if (!countError && count !== null) {
+        setPlayersOnline(count)
+      } else {
+        console.error('Error counting active users:', countError)
+        setPlayersOnline(0)
+      }
 
       const { data: matches } = await supabase
         .from('matches')
@@ -61,6 +70,16 @@ export default function Home() {
       // User profile doesn't exist yet
     }
   }
+
+  useEffect(() => {
+    // Update user's last_seen timestamp
+    updatePresence()
+    
+    fetchStats()
+    fetchUserProfile()
+    const interval = setInterval(fetchStats, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleFindMatch = async () => {
     setIsLoading(true)

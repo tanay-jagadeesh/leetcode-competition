@@ -327,6 +327,7 @@ export default function RacePage() {
     }
 
     setChatMessages(prev => [...prev, userMessage])
+    const inputValue = chatInput.trim()
     setChatInput('')
     setIsSendingMessage(true)
 
@@ -335,7 +336,7 @@ export default function RacePage() {
         problem.title,
         problem.description,
         code,
-        userMessage.content,
+        inputValue,
         chatMessages
       )
 
@@ -348,6 +349,15 @@ export default function RacePage() {
       setChatMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('Error sending message:', error)
+      const errorMessage = error instanceof Error ? error.message : '❌ An error occurred. Please try again.'
+      
+      const errorChatMessage: ChatMessage = {
+        role: 'assistant',
+        content: errorMessage,
+        timestamp: Date.now()
+      }
+
+      setChatMessages(prev => [...prev, errorChatMessage])
     } finally {
       setIsSendingMessage(false)
     }
