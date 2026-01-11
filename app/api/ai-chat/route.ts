@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         if (availableHints < 1) {
           return NextResponse.json(
             { 
-              error: `❌ Not enough points! You need ${HINT_COST} points per hint. You have ${userProfile.total_points} points. Win matches to earn more points!`,
+              error: `Need more points for hints: price per hint is 5. You currently have ${userProfile.total_points} points. Win matches to earn more points!`,
               pointsRemaining: userProfile.total_points,
               hintsAvailable: 0
             },

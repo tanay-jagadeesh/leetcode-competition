@@ -59,7 +59,7 @@ export default function Home() {
   const fetchUserProfile = async () => {
     try {
       const userId = getPlayerId()
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
@@ -67,9 +67,27 @@ export default function Home() {
 
       if (data) {
         setUserProfile(data)
+      } else if (error && error.code === 'PGRST116') {
+        // User profile doesn't exist yet - create one with 0 points
+        const { data: newProfile } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: userId,
+            username: 'Anonymous',
+            total_points: 0,
+            matches_played: 0,
+            matches_won: 0,
+            problems_solved: 0
+          })
+          .select()
+          .single()
+        
+        if (newProfile) {
+          setUserProfile(newProfile)
+        }
       }
     } catch (error) {
-      // User profile doesn't exist yet
+      console.error('Error fetching user profile:', error)
     }
   }
 
@@ -142,21 +160,23 @@ export default function Home() {
             Same problem, one winner. Prove you&apos;re faster.
           </p>
 
-          {/* Points Display - Prominent */}
-          {userProfile && (
-            <div className="inline-flex items-center gap-6 px-6 py-4 mb-12 bg-card border border-border rounded-lg">
-              <div className="text-center">
-                <div className="text-xs uppercase tracking-wider text-sub font-medium mb-1">Your Points</div>
-                <div className="text-3xl font-mono text-accent font-bold tabular-nums">{userProfile.total_points}</div>
-              </div>
-              <div className="h-12 w-px bg-border"></div>
-              <div className="text-center">
-                <div className="text-xs uppercase tracking-wider text-sub font-medium mb-1">Available Hints</div>
-                <div className="text-3xl font-mono text-text font-bold tabular-nums">{Math.floor(userProfile.total_points / 5)}</div>
-                <div className="text-[10px] text-sub mt-0.5">5 points per hint</div>
+          {/* Points Display - Always Visible */}
+          <div className="inline-flex items-center gap-6 px-6 py-4 mb-12 bg-card border border-border rounded-lg shadow-sm">
+            <div className="text-center">
+              <div className="text-xs uppercase tracking-wider text-sub font-medium mb-1">Your Points</div>
+              <div className="text-3xl font-mono text-accent font-bold tabular-nums">
+                {userProfile ? userProfile.total_points : 0}
               </div>
             </div>
-          )}
+            <div className="h-12 w-px bg-border"></div>
+            <div className="text-center">
+              <div className="text-xs uppercase tracking-wider text-sub font-medium mb-1">Available Hints</div>
+              <div className="text-3xl font-mono text-text font-bold tabular-nums">
+                {userProfile ? Math.floor(userProfile.total_points / 5) : 0}
+              </div>
+              <div className="text-[10px] text-sub mt-0.5">5 points per hint</div>
+            </div>
+          </div>
 
           <div className="flex items-center justify-center gap-4 mb-8">
             <button
@@ -213,36 +233,59 @@ export default function Home() {
         <section className="max-w-4xl mx-auto px-8 py-24 border-t border-border">
           <h2 className="text-xs uppercase tracking-wider text-sub mb-10 font-medium">Recent battles</h2>
           <div className="space-y-1">
-            {recentMatches.map((match) => (
-              <div
-                key={match.id}
-                className="card p-5 flex items-center justify-between text-sm hover:border-[#D1CFC9] transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <span className="font-mono text-xs text-sub">
-                    {new Date(match.created_at).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                  <span className="text-text font-medium">
-                    {(match.problems as any)?.title || 'Problem'}
-                  </span>
+            {recentMatches.map((match) => {
+              // Determine if current user won this match
+              const currentPlayerId = getPlayerId()
+              const userRole = currentPlayerId === match.player2_id ? 'player2' : 'player1'
+              const userWon = match.winner === userRole && match[`${userRole}_passed`] === true
+              const userPassed = match[`${userRole}_passed`] === true
+              const opponentRole = userRole === 'player1' ? 'player2' : 'player1'
+              const opponentPassed = match[`${opponentRole}_passed`] === true
+              
+              // Determine result status
+              let resultText = 'Draw'
+              let resultColor = 'text-sub'
+              
+              if (match.winner === 'draw' || (!userPassed && !opponentPassed)) {
+                resultText = 'Draw'
+                resultColor = 'text-sub'
+              } else if (userWon) {
+                resultText = 'Won'
+                resultColor = 'text-win'
+              } else {
+                resultText = 'Lost'
+                resultColor = 'text-lose'
+              }
+
+              return (
+                <div
+                  key={match.id}
+                  className="card p-5 flex items-center justify-between text-sm hover:border-[#D1CFC9] transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="font-mono text-xs text-sub">
+                      {new Date(match.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                    <span className="text-text font-medium">
+                      {(match.problems as any)?.title || 'Problem'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <span className="text-sub font-mono text-sm">
+                      {match.player1_time && Math.floor(match.player1_time / 1000)}s
+                      <span className="mx-2 text-sub">vs</span>
+                      {match.player2_time && Math.floor(match.player2_time / 1000)}s
+                    </span>
+                    <span className={`text-xs font-medium ${resultColor}`}>
+                      {resultText}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-6">
-                  <span className="text-sub font-mono text-sm">
-                    {match.player1_time && Math.floor(match.player1_time / 1000)}s
-                    <span className="mx-2 text-sub">vs</span>
-                    {match.player2_time && Math.floor(match.player2_time / 1000)}s
-                  </span>
-                  <span className={`text-xs font-medium ${
-                    match.winner === 'draw' ? 'text-sub' : match.winner ? 'text-win' : 'text-lose'
-                  }`}>
-                    {match.winner === 'draw' ? 'Draw' : 'Won'}
-                  </span>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
       )}
