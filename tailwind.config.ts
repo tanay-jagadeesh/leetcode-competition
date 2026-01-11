@@ -9,35 +9,31 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Vibrant but tasteful primary
-        primary: {
-          DEFAULT: '#3b82f6',
-          dark: '#2563eb',
-          light: '#60a5fa',
-        },
-        // Electric accent for energy
-        accent: {
-          DEFAULT: '#8b5cf6',
-          dark: '#7c3aed',
-          light: '#a78bfa',
-        },
-        // Darker, richer backgrounds
+        // New professional palette
+        bg: '#F7F6F3',
+        card: '#FFFFFF',
+        border: '#E5E3DF',
+        text: '#111111',
+        sub: '#6B7280',
+        accent: '#3F5BF6',
+        win: '#16A34A',
+        lose: '#DC2626',
+        // Legacy support (mapped to new colors)
         base: {
-          DEFAULT: '#0a0a0a',
-          light: '#141414',
-          lighter: '#1f1f1f',
-          border: '#2a2a2a',
+          DEFAULT: '#F7F6F3',
+          light: '#FFFFFF',
+          lighter: '#FFFFFF',
+          border: '#E5E3DF',
         },
-        // Punchy semantic colors
-        success: '#10b981',
-        error: '#ef4444',
-        warning: '#f59e0b',
-        info: '#06b6d4',
+        success: '#16A34A',
+        error: '#DC2626',
+        warning: '#F59E0B',
+        primary: '#3F5BF6',
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
-        display: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['ui-monospace', 'monospace'],
+        display: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
       fontSize: {
         'xs': ['0.75rem', { lineHeight: '1.5' }],
@@ -54,7 +50,6 @@ const config: Config = {
       animation: {
         'fade-in': 'fade-in 0.4s ease-out',
         'slide-up': 'slide-up 0.5s ease-out',
-        'glow': 'glow 2s ease-in-out infinite',
       },
       keyframes: {
         'fade-in': {
@@ -65,13 +60,6 @@ const config: Config = {
           '0%': { opacity: '0', transform: 'translateY(20px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
-        'glow': {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(139, 92, 246, 0.3)' },
-          '50%': { boxShadow: '0 0 30px rgba(139, 92, 246, 0.6)' },
-        },
-      },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
       },
     },
   },

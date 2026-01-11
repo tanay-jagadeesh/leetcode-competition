@@ -43,6 +43,7 @@ export default function RacePage() {
   const startTime = useRef<number>(Date.now())
   const timerInterval = useRef<NodeJS.Timeout>()
   const botTimeout = useRef<NodeJS.Timeout>()
+  const completionCheckInterval = useRef<NodeJS.Timeout>()
 
   useEffect(() => {
     loadMatch()
@@ -72,18 +73,49 @@ export default function RacePage() {
           setMatch(updatedMatch)
           updateOpponentStatus(updatedMatch)
 
+          // Handle match completion - redirect to results
           if (updatedMatch.status === 'completed') {
-            setTimeout(() => router.push(`/results/${matchId}`), 2000)
+            // Clear polling interval if it exists
+            if (completionCheckInterval.current) {
+              clearInterval(completionCheckInterval.current)
+            }
+            // Small delay to show final state
+            setTimeout(() => {
+              router.push(`/results/${matchId}`)
+            }, 1500)
           }
         }
       )
       .subscribe()
+
+    // Fallback: Poll for match completion every 2 seconds
+    // This ensures we catch completion even if real-time subscription fails
+    completionCheckInterval.current = setInterval(async () => {
+      try {
+        const { data: currentMatch } = await supabase
+          .from('matches')
+          .select('*')
+          .eq('id', matchId)
+          .single()
+
+        if (currentMatch && currentMatch.status === 'completed') {
+          if (completionCheckInterval.current) {
+            clearInterval(completionCheckInterval.current)
+          }
+          router.push(`/results/${matchId}`)
+        }
+      } catch (error) {
+        // Silently fail - polling is just a fallback
+        console.error('Error checking match completion:', error)
+      }
+    }, 2000)
 
     return () => {
       window.removeEventListener('keydown', handleKeyboard)
       channel.unsubscribe()
       if (timerInterval.current) clearInterval(timerInterval.current)
       if (botTimeout.current) clearTimeout(botTimeout.current)
+      if (completionCheckInterval.current) clearInterval(completionCheckInterval.current)
     }
   }, [matchId, router])
 
@@ -259,18 +291,29 @@ export default function RacePage() {
 
       setHasSubmitted(true)
 
-      const { data: updatedMatch } = await supabase
+      // Fetch the latest match state after our update
+      const { data: updatedMatch, error: fetchError } = await supabase
         .from('matches')
         .select('*')
         .eq('id', matchId)
         .single()
 
+      if (fetchError) {
+        console.error('Error fetching updated match:', fetchError)
+        return
+      }
+
       if (updatedMatch) {
+        // Check if both players have submitted (both have non-null passed values AND times)
         const bothSubmitted =
           updatedMatch.player1_passed !== null &&
-          updatedMatch.player2_passed !== null
+          updatedMatch.player1_time !== null &&
+          updatedMatch.player2_passed !== null &&
+          updatedMatch.player2_time !== null &&
+          updatedMatch.status !== 'completed' // Only complete if not already completed
 
         if (bothSubmitted) {
+          // Determine winner
           let winner: 'player1' | 'player2' | 'draw' = 'draw'
 
           if (updatedMatch.player1_passed && !updatedMatch.player2_passed) {
@@ -278,29 +321,49 @@ export default function RacePage() {
           } else if (!updatedMatch.player1_passed && updatedMatch.player2_passed) {
             winner = 'player2'
           } else if (updatedMatch.player1_passed && updatedMatch.player2_passed) {
-            winner = updatedMatch.player1_time! < updatedMatch.player2_time! ? 'player1' : 'player2'
+            // Both passed - winner is the one with faster time
+            if (updatedMatch.player1_time && updatedMatch.player2_time) {
+              winner = updatedMatch.player1_time < updatedMatch.player2_time ? 'player1' : 'player2'
+            } else {
+              winner = 'draw'
+            }
           }
 
-          await supabase
+          // Update match status to completed (only if not already completed)
+          const { error: completeError } = await supabase
             .from('matches')
             .update({
               status: 'completed',
               winner,
             })
             .eq('id', matchId)
+            .eq('status', 'active') // Only update if still active (prevents race condition)
 
-          if (allPassed) {
-            await supabase
-              .from('leaderboard')
-              .insert({
-                problem_id: problem.id,
-                username: `Player_${playerRole}`,
-                time_ms: currentTime,
-                language,
-              })
+          if (completeError) {
+            console.error('Error completing match:', completeError)
           }
 
-          setTimeout(() => router.push(`/results/${matchId}`), 2000)
+          // Add to leaderboard if solution passed
+          if (allPassed) {
+            try {
+              await supabase
+                .from('leaderboard')
+                .insert({
+                  problem_id: problem.id,
+                  username: `Player_${playerRole}`,
+                  time_ms: currentTime,
+                  language,
+                })
+            } catch (leaderboardError) {
+              // Leaderboard insert is not critical, log but don't fail
+              console.error('Error adding to leaderboard:', leaderboardError)
+            }
+          }
+
+          // Redirect will be handled by the subscription, but add a fallback
+          setTimeout(() => {
+            router.push(`/results/${matchId}`)
+          }, 2000)
         }
       }
     } catch (error) {
@@ -369,8 +432,8 @@ export default function RacePage() {
 
   if (!problem || !match) {
     return (
-      <div className="min-h-screen bg-base flex items-center justify-center">
-        <div className="text-muted">Loading match...</div>
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="text-sub">Loading match...</div>
       </div>
     )
   }
@@ -383,68 +446,68 @@ export default function RacePage() {
   }
 
   return (
-    <div className="h-screen bg-base flex flex-col">
+    <div className="h-screen bg-bg flex flex-col">
       {/* Top bar */}
-      <header className="border-b border-base-lighter px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <div className="font-mono text-lg font-medium">{formatTime(timer)}</div>
-          <div className="h-4 w-px bg-base-lighter"></div>
+      <header className="border-b border-border px-8 py-4 flex items-center justify-between bg-card">
+        <div className="flex items-center gap-6">
+          <div className="font-mono text-base font-medium text-text">{formatTime(timer)}</div>
+          <div className="h-4 w-px bg-border"></div>
           <div className="flex items-center gap-2 text-sm">
             <span className={`status-dot ${
               opponentStatus === 'coding' ? 'bg-accent' :
               opponentStatus === 'testing' ? 'bg-warning' :
-              opponentStatus === 'submitted' ? 'bg-success' : 'bg-stone-600'
+              opponentStatus === 'submitted' ? 'bg-win' : 'bg-sub'
             }`}></span>
-            <span className="text-muted">Opponent: {opponentStatusText[opponentStatus]}</span>
+            <span className="text-sub">Opponent: {opponentStatusText[opponentStatus]}</span>
           </div>
         </div>
         {hasSubmitted && (
-          <div className="text-sm text-warning">Waiting for opponent</div>
+          <div className="text-sm text-warning font-medium">Waiting for opponent</div>
         )}
       </header>
 
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel - Problem */}
-        <div className={`${isChatOpen ? 'w-1/3' : 'w-1/2'} border-r border-base-lighter overflow-y-auto transition-all duration-300`}>
-          <div className="p-8 max-w-2xl">
+        <div className={`${isChatOpen ? 'w-1/3' : 'w-1/2'} border-r border-border overflow-y-auto transition-all duration-300 bg-card`}>
+          <div className="p-10 max-w-2xl">
             {/* Problem header */}
-            <div className="mb-8">
-              <h1 className="text-2xl mb-3">{problem.title}</h1>
-              <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${
-                problem.difficulty === 'easy' ? 'bg-success/20 text-success' :
-                problem.difficulty === 'medium' ? 'bg-warning/20 text-warning' :
-                'bg-error/20 text-error'
+            <div className="mb-10">
+              <h1 className="text-2xl font-semibold mb-4 text-text">{problem.title}</h1>
+              <span className={`inline-block px-3 py-1 text-xs font-medium rounded ${
+                problem.difficulty === 'easy' ? 'bg-win/10 text-win' :
+                problem.difficulty === 'medium' ? 'bg-warning/10 text-warning' :
+                'bg-lose/10 text-lose'
               }`}>
                 {problem.difficulty}
               </span>
             </div>
 
             {/* Description */}
-            <div className="space-y-6 text-sm text-muted">
-              <div className="whitespace-pre-wrap leading-relaxed">
+            <div className="space-y-8 text-sm text-sub leading-relaxed">
+              <div className="whitespace-pre-wrap">
                 {problem.description}
               </div>
 
               <div>
-                <h3 className="text-stone-200 mb-2 text-xs uppercase tracking-wider">Constraints</h3>
-                <div className="whitespace-pre-wrap text-subtle leading-relaxed">
+                <h3 className="text-text mb-3 text-xs uppercase tracking-wider font-medium">Constraints</h3>
+                <div className="whitespace-pre-wrap">
                   {problem.constraints}
                 </div>
               </div>
 
               <div>
-                <h3 className="text-stone-200 mb-3 text-xs uppercase tracking-wider">Examples</h3>
+                <h3 className="text-text mb-4 text-xs uppercase tracking-wider font-medium">Examples</h3>
                 <div className="space-y-3">
                   {problem.test_cases.filter(tc => tc.is_sample).map((tc, idx) => (
-                    <div key={idx} className="card p-4 font-mono text-xs space-y-2">
+                    <div key={idx} className="card p-4 font-mono text-xs space-y-2 bg-bg">
                       <div>
-                        <span className="text-subtle">Input:</span>{' '}
-                        <span className="text-stone-200">{JSON.stringify(tc.input)}</span>
+                        <span className="text-sub">Input:</span>{' '}
+                        <span className="text-text">{JSON.stringify(tc.input)}</span>
                       </div>
                       <div>
-                        <span className="text-subtle">Output:</span>{' '}
-                        <span className="text-stone-200">{JSON.stringify(tc.expected_output)}</span>
+                        <span className="text-sub">Output:</span>{' '}
+                        <span className="text-text">{JSON.stringify(tc.expected_output)}</span>
                       </div>
                     </div>
                   ))}
@@ -454,15 +517,15 @@ export default function RacePage() {
 
             {/* AI Hint */}
             {(aiHint || isLoadingHint) && (
-              <div className="mt-8 card p-4 border-accent/30">
+              <div className="mt-10 card p-5 border-accent/20 bg-accent/5">
                 <div className="flex items-start gap-3">
                   <span className="text-accent text-sm">→</span>
                   <div className="flex-1 space-y-2">
-                    <div className="text-xs uppercase tracking-wider text-accent">Hint</div>
+                    <div className="text-xs uppercase tracking-wider text-accent font-medium">Hint</div>
                     {isLoadingHint ? (
-                      <div className="text-sm text-subtle italic">Generating hint...</div>
+                      <div className="text-sm text-sub italic">Generating hint...</div>
                     ) : (
-                      <p className="text-sm text-muted leading-relaxed">{aiHint}</p>
+                      <p className="text-sm text-sub leading-relaxed">{aiHint}</p>
                     )}
                   </div>
                 </div>
@@ -471,26 +534,26 @@ export default function RacePage() {
 
             {/* Test results */}
             {testResults.length > 0 && (
-              <div className="mt-8 space-y-2">
+              <div className="mt-10 space-y-2">
                 {testResults.map((result, idx) => (
                   <div
                     key={idx}
-                    className={`card p-3 border ${
+                    className={`card p-4 border ${
                       result.passed
-                        ? 'border-success/30 bg-success/5'
-                        : 'border-error/30 bg-error/5'
+                        ? 'border-win/20 bg-win/5'
+                        : 'border-lose/20 bg-lose/5'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-subtle">Test {idx + 1}</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-sub font-medium">Test {idx + 1}</span>
                       <span className={`text-xs font-medium ${
-                        result.passed ? 'text-success' : 'text-error'
+                        result.passed ? 'text-win' : 'text-lose'
                       }`}>
                         {result.passed ? 'Passed' : 'Failed'}
                       </span>
                     </div>
                     {!result.passed && (
-                      <div className="font-mono text-xs text-muted space-y-1">
+                      <div className="font-mono text-xs text-sub space-y-1">
                         <div>Input: {JSON.stringify(result.input)}</div>
                         <div>Expected: {JSON.stringify(result.expected)}</div>
                         <div>Got: {result.error || JSON.stringify(result.actual)}</div>
@@ -504,14 +567,14 @@ export default function RacePage() {
         </div>
 
         {/* Center panel - Editor */}
-        <div className={`${isChatOpen ? 'w-1/3' : 'w-1/2'} flex flex-col transition-all duration-300`}>
+        <div className={`${isChatOpen ? 'w-1/3' : 'w-1/2'} flex flex-col transition-all duration-300 bg-card`}>
           <div className="flex-1 overflow-hidden">
             <Editor
               height="100%"
               language={language}
               value={code}
               onChange={(value) => setCode(value || '')}
-              theme="vs-dark"
+              theme="vs"
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,
@@ -527,28 +590,28 @@ export default function RacePage() {
           </div>
 
           {/* Editor footer */}
-          <div className="border-t border-base-lighter p-4 flex items-center justify-between bg-base-light">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-subtle">Python</span>
+          <div className="border-t border-border p-5 flex items-center justify-between bg-bg">
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-sub">Python</span>
               <button
                 onClick={() => setIsChatOpen(!isChatOpen)}
-                className="text-xs text-accent hover:text-accent-light transition-colors"
+                className="text-xs text-accent hover:text-[#2E4BD9] transition-colors font-medium"
               >
                 {isChatOpen ? '← Close AI' : 'AI Assistant →'}
               </button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={handleRunTests}
                 disabled={isRunning || hasSubmitted}
-                className="btn-secondary text-xs px-3 py-2"
+                className="btn-secondary text-sm"
               >
                 {isRunning ? 'Running...' : 'Run tests'}
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || hasSubmitted}
-                className="btn-primary text-xs px-4 py-2"
+                className="btn-primary text-sm"
               >
                 {isSubmitting ? 'Submitting...' : hasSubmitted ? 'Submitted' : 'Submit'}
               </button>
@@ -558,17 +621,17 @@ export default function RacePage() {
 
         {/* Right panel - AI Chat */}
         {isChatOpen && (
-          <div className="w-1/3 border-l border-base-lighter flex flex-col bg-base-light">
+          <div className="w-1/3 border-l border-border flex flex-col bg-card">
             {/* Chat header */}
-            <div className="border-b border-base-lighter p-4">
+            <div className="border-b border-border p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-medium text-sm">AI Coding Assistant</h3>
-                  <p className="text-xs text-subtle mt-1">Ask questions about the problem</p>
+                  <h3 className="font-semibold text-sm text-text">AI Coding Assistant</h3>
+                  <p className="text-xs text-sub mt-1">Ask questions about the problem</p>
                 </div>
                 <button
                   onClick={() => setIsChatOpen(false)}
-                  className="text-subtle hover:text-stone-200 transition-colors"
+                  className="text-sub hover:text-text transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -578,12 +641,12 @@ export default function RacePage() {
             </div>
 
             {/* Chat messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {chatMessages.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-4xl mb-4">💬</div>
-                  <p className="text-sm text-muted mb-2">No messages yet</p>
-                  <p className="text-xs text-subtle">
+                <div className="text-center py-16">
+                  <div className="text-3xl mb-4">💬</div>
+                  <p className="text-sm text-sub mb-2">No messages yet</p>
+                  <p className="text-xs text-sub">
                     Ask me anything about the problem
                   </p>
                 </div>
@@ -595,10 +658,10 @@ export default function RacePage() {
                       className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                        className={`max-w-[85%] rounded-lg px-4 py-3 text-sm ${
                           msg.role === 'user'
                             ? 'bg-accent text-white'
-                            : 'bg-base border border-base-lighter text-stone-200'
+                            : 'bg-bg border border-border text-text'
                         }`}
                       >
                         <p className="leading-relaxed">{msg.content}</p>
@@ -607,7 +670,7 @@ export default function RacePage() {
                   ))}
                   {isSendingMessage && (
                     <div className="flex justify-start">
-                      <div className="bg-base border border-base-lighter rounded-lg px-3 py-2">
+                      <div className="bg-bg border border-border rounded-lg px-4 py-3">
                         <div className="flex gap-1">
                           <div className="w-2 h-2 bg-accent rounded-full animate-bounce"></div>
                           <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
@@ -622,8 +685,8 @@ export default function RacePage() {
             </div>
 
             {/* Chat input */}
-            <div className="border-t border-base-lighter p-4">
-              <div className="flex gap-2">
+            <div className="border-t border-border p-5 bg-bg">
+              <div className="flex gap-3">
                 <input
                   type="text"
                   value={chatInput}
@@ -635,18 +698,18 @@ export default function RacePage() {
                     }
                   }}
                   placeholder="Ask a question..."
-                  className="flex-1 input text-xs"
+                  className="flex-1 input"
                   disabled={isSendingMessage}
                 />
                 <button
                   onClick={handleSendMessage}
                   disabled={!chatInput.trim() || isSendingMessage}
-                  className="btn-primary px-3 py-2 text-xs"
+                  className="btn-primary"
                 >
                   Send
                 </button>
               </div>
-              <p className="text-xs text-subtle mt-2">
+              <p className="text-xs text-sub mt-3">
                 Press Enter to send
               </p>
             </div>

@@ -1,86 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  * {
+    @apply border-border;
+  }
+
   body {
-    @apply bg-base text-gray-100 antialiased;
+    @apply bg-bg text-text antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply text-white font-semibold;
+    @apply text-text font-semibold;
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
   /* Button styles */
   .btn-primary {
-    @apply px-4 py-2 bg-gradient-to-r from-primary to-accent text-white font-semibold text-sm rounded-lg
-           hover:shadow-lg hover:shadow-accent/20 transform hover:scale-[1.02]
-           transition-all duration-200
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+    @apply px-6 py-3 bg-accent text-white font-medium text-sm rounded-lg
+           hover:bg-[#2E4BD9] active:bg-[#1E3AB8]
+           transition-colors duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply px-4 py-2 bg-base-lighter text-gray-200 font-medium text-sm rounded-lg
-           border border-base-border hover:border-gray-600
-           transition-all duration-200
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-6 py-3 bg-card text-text font-medium text-sm rounded-lg
+           border border-border hover:border-[#D1CFC9]
+           transition-colors duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   /* Card styles */
   .card {
-    @apply bg-base-light border border-base-border rounded-xl;
+    @apply bg-card border border-border rounded-lg;
   }
 
   .card-hover {
-    @apply card hover:border-gray-700 hover:shadow-lg hover:shadow-black/20 transition-all duration-300;
+    @apply card hover:border-[#D1CFC9] transition-colors duration-150;
   }
 
   /* Status indicators */
   .status-dot {
-    @apply w-2 h-2 rounded-full animate-pulse;
+    @apply w-2 h-2 rounded-full;
   }
 
   /* Input styles */
   .input {
-    @apply bg-base-lighter border border-base-border rounded-lg px-3 py-2
-           text-gray-100 text-sm placeholder:text-gray-500
-           focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
-           transition-all duration-200;
-  }
-
-  /* Gradient text */
-  .text-gradient {
-    @apply bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent;
-    background-size: 200% auto;
-    animation: gradient 3s linear infinite;
-  }
-
-  @keyframes gradient {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+    @apply bg-card border border-border rounded-lg px-4 py-2.5
+           text-text text-sm placeholder:text-sub
+           focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
+           transition-all duration-150;
   }
 }
 
 @layer utilities {
   /* Typography utilities */
   .text-muted {
-    @apply text-gray-400;
+    @apply text-sub;
   }
 
   .text-subtle {
-    @apply text-gray-500;
-  }
-
-  /* Glow effect */
-  .glow {
-    @apply shadow-lg shadow-accent/30;
-  }
-
-  .glow-success {
-    @apply shadow-lg shadow-success/30;
+    @apply text-sub;
   }
 }
 
@@ -95,16 +82,16 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: #E5E3DF;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: #D1CFC9;
 }
 
 /* Selection */
 ::selection {
-  background: rgba(139, 92, 246, 0.3);
-  color: white;
+  background: rgba(63, 91, 246, 0.15);
+  color: #111111;
 }

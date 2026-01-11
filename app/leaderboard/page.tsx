@@ -70,55 +70,55 @@ export default function LeaderboardPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-base flex items-center justify-center">
-        <div className="text-muted">Loading leaderboard...</div>
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="text-sub">Loading leaderboard...</div>
       </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-base">
+    <main className="min-h-screen bg-bg">
       {/* Header */}
-      <header className="border-b border-base-border">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-border">
+        <div className="max-w-6xl mx-auto px-8 py-6 flex items-center justify-between">
           <button
             onClick={() => router.push('/')}
-            className="text-sm text-muted hover:text-gray-200 transition-colors"
+            className="text-sm text-sub hover:text-text transition-colors"
           >
             ← Back to home
           </button>
-          <div className="text-xl font-bold text-gradient">Global Leaderboard</div>
+          <div className="text-xl font-semibold text-text">Global Leaderboard</div>
           <div className="w-20"></div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-16">
+      <div className="max-w-6xl mx-auto px-8 py-16">
         {/* Current user stats */}
         {currentUserProfile && (
-          <div className="card p-6 mb-12">
+          <div className="card p-8 mb-12">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-subtle mb-1">Your rank</div>
-                <div className="text-3xl font-bold text-gradient">
+                <div className="text-sm text-sub mb-2 font-medium">Your rank</div>
+                <div className="text-4xl font-semibold text-text">
                   {currentUserRank ? getRankBadge(currentUserRank) : '--'}
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-8">
+              <div className="grid grid-cols-4 gap-12">
                 <div>
-                  <div className="text-2xl font-mono text-accent">{currentUserProfile.total_points}</div>
-                  <div className="text-xs text-subtle">Points</div>
+                  <div className="text-3xl font-mono text-accent font-semibold">{currentUserProfile.total_points}</div>
+                  <div className="text-xs text-sub font-medium mt-1">Points</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-mono">{currentUserProfile.matches_won}</div>
-                  <div className="text-xs text-subtle">Wins</div>
+                  <div className="text-3xl font-mono text-text font-semibold">{currentUserProfile.matches_won}</div>
+                  <div className="text-xs text-sub font-medium mt-1">Wins</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-mono">{currentUserProfile.problems_solved}</div>
-                  <div className="text-xs text-subtle">Solved</div>
+                  <div className="text-3xl font-mono text-text font-semibold">{currentUserProfile.problems_solved}</div>
+                  <div className="text-xs text-sub font-medium mt-1">Solved</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-mono">{getWinRate(currentUserProfile)}</div>
-                  <div className="text-xs text-subtle">Win Rate</div>
+                  <div className="text-3xl font-mono text-text font-semibold">{getWinRate(currentUserProfile)}</div>
+                  <div className="text-xs text-sub font-medium mt-1">Win Rate</div>
                 </div>
               </div>
             </div>
@@ -129,48 +129,48 @@ export default function LeaderboardPage() {
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="border-b border-base-border">
+              <thead className="border-b border-border bg-bg">
                 <tr>
-                  <th className="text-left p-4 text-xs uppercase tracking-wider text-subtle font-semibold">Rank</th>
-                  <th className="text-left p-4 text-xs uppercase tracking-wider text-subtle font-semibold">Player</th>
-                  <th className="text-right p-4 text-xs uppercase tracking-wider text-subtle font-semibold">Points</th>
-                  <th className="text-right p-4 text-xs uppercase tracking-wider text-subtle font-semibold">Matches</th>
-                  <th className="text-right p-4 text-xs uppercase tracking-wider text-subtle font-semibold">Wins</th>
-                  <th className="text-right p-4 text-xs uppercase tracking-wider text-subtle font-semibold">Solved</th>
-                  <th className="text-right p-4 text-xs uppercase tracking-wider text-subtle font-semibold">Win Rate</th>
+                  <th className="text-left p-5 text-xs uppercase tracking-wider text-sub font-semibold">Rank</th>
+                  <th className="text-left p-5 text-xs uppercase tracking-wider text-sub font-semibold">Player</th>
+                  <th className="text-right p-5 text-xs uppercase tracking-wider text-sub font-semibold">Points</th>
+                  <th className="text-right p-5 text-xs uppercase tracking-wider text-sub font-semibold">Matches</th>
+                  <th className="text-right p-5 text-xs uppercase tracking-wider text-sub font-semibold">Wins</th>
+                  <th className="text-right p-5 text-xs uppercase tracking-wider text-sub font-semibold">Solved</th>
+                  <th className="text-right p-5 text-xs uppercase tracking-wider text-sub font-semibold">Win Rate</th>
                 </tr>
               </thead>
               <tbody>
                 {leaderboard.map((profile, idx) => (
                   <tr
                     key={profile.id}
-                    className={`border-b border-base-border hover:bg-base-lighter transition-colors ${
+                    className={`border-b border-border hover:bg-bg transition-colors ${
                       profile.id === currentUserProfile?.id ? 'bg-accent/5' : ''
                     }`}
                   >
-                    <td className="p-4">
-                      <span className={`font-mono text-sm ${
-                        idx === 0 ? 'text-success font-bold' :
-                        idx === 1 ? 'text-gray-300 font-bold' :
-                        idx === 2 ? 'text-warning font-bold' :
-                        'text-subtle'
+                    <td className="p-5">
+                      <span className={`font-mono text-sm font-medium ${
+                        idx === 0 ? 'text-win' :
+                        idx === 1 ? 'text-sub' :
+                        idx === 2 ? 'text-warning' :
+                        'text-sub'
                       }`}>
                         {getRankBadge(idx + 1)}
                       </span>
                     </td>
-                    <td className="p-4">
+                    <td className="p-5">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{profile.username}</span>
+                        <span className="font-medium text-text">{profile.username}</span>
                         {profile.id === currentUserProfile?.id && (
-                          <span className="text-xs px-2 py-0.5 bg-accent/20 text-accent rounded">You</span>
+                          <span className="text-xs px-2 py-1 bg-accent/10 text-accent rounded font-medium">You</span>
                         )}
                       </div>
                     </td>
-                    <td className="p-4 text-right font-mono text-accent font-semibold">{profile.total_points}</td>
-                    <td className="p-4 text-right font-mono text-muted">{profile.matches_played}</td>
-                    <td className="p-4 text-right font-mono text-success">{profile.matches_won}</td>
-                    <td className="p-4 text-right font-mono text-muted">{profile.problems_solved}</td>
-                    <td className="p-4 text-right font-mono text-muted">{getWinRate(profile)}</td>
+                    <td className="p-5 text-right font-mono text-accent font-semibold">{profile.total_points}</td>
+                    <td className="p-5 text-right font-mono text-text">{profile.matches_played}</td>
+                    <td className="p-5 text-right font-mono text-win">{profile.matches_won}</td>
+                    <td className="p-5 text-right font-mono text-text">{profile.problems_solved}</td>
+                    <td className="p-5 text-right font-mono text-text">{getWinRate(profile)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -179,7 +179,7 @@ export default function LeaderboardPage() {
         </div>
 
         {leaderboard.length === 0 && (
-          <div className="text-center py-12 text-muted">
+          <div className="text-center py-16 text-sub">
             No players yet. Be the first to compete!
           </div>
         )}

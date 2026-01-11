@@ -65,7 +65,7 @@ export default function ResultsPage() {
   }
 
   const handlePlayAgain = () => {
-    router.push('/queue')
+    router.push('/')
   }
 
   const handleGoHome = () => {
@@ -74,8 +74,8 @@ export default function ResultsPage() {
 
   if (!match || !problem) {
     return (
-      <div className="min-h-screen bg-base flex items-center justify-center">
-        <div className="text-muted">Loading results...</div>
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="text-sub">Loading results...</div>
       </div>
     )
   }
@@ -87,52 +87,52 @@ export default function ResultsPage() {
   const opponentPassed = match[`${opponentRole}_passed`]
 
   return (
-    <main className="min-h-screen bg-base">
+    <main className="min-h-screen bg-bg">
       {/* Header */}
-      <header className="border-b border-base-lighter">
-        <div className="max-w-4xl mx-auto px-6 py-4">
+      <header className="border-b border-border">
+        <div className="max-w-4xl mx-auto px-8 py-6">
           <button
             onClick={handleGoHome}
-            className="text-sm text-muted hover:text-stone-200 transition-colors"
+            className="text-sm text-sub hover:text-text transition-colors"
           >
             ← Back to home
           </button>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-16">
+      <div className="max-w-4xl mx-auto px-8 py-20">
         {/* Result header */}
         <div className="mb-16">
           {didWin ? (
             <>
-              <div className="text-sm uppercase tracking-wider text-success mb-4">Victory</div>
-              <h1 className="text-4xl mb-3">You won</h1>
-              <p className="text-muted">Submitted the correct solution first</p>
+              <div className="text-xs uppercase tracking-wider text-win mb-4 font-medium">Victory</div>
+              <h1 className="text-4xl font-semibold mb-4 text-text">You won</h1>
+              <p className="text-sub">Submitted the correct solution first</p>
             </>
           ) : match.winner === 'draw' ? (
             <>
-              <div className="text-sm uppercase tracking-wider text-warning mb-4">Draw</div>
-              <h1 className="text-4xl mb-3">Match incomplete</h1>
-              <p className="text-muted">Neither player submitted a passing solution</p>
+              <div className="text-xs uppercase tracking-wider text-warning mb-4 font-medium">Draw</div>
+              <h1 className="text-4xl font-semibold mb-4 text-text">Match incomplete</h1>
+              <p className="text-sub">Neither player submitted a passing solution</p>
             </>
           ) : (
             <>
-              <div className="text-sm uppercase tracking-wider text-muted mb-4">Defeated</div>
-              <h1 className="text-4xl mb-3">Opponent won</h1>
-              <p className="text-muted">They submitted a correct solution faster</p>
+              <div className="text-xs uppercase tracking-wider text-sub mb-4 font-medium">Defeated</div>
+              <h1 className="text-4xl font-semibold mb-4 text-text">Opponent won</h1>
+              <p className="text-sub">They submitted a correct solution faster</p>
             </>
           )}
         </div>
 
         {/* Problem info */}
-        <div className="card p-6 mb-8">
+        <div className="card p-6 mb-10">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg mb-1">{problem.title}</h2>
-              <span className={`text-xs ${
-                problem.difficulty === 'easy' ? 'text-success' :
+              <h2 className="text-lg font-semibold mb-2 text-text">{problem.title}</h2>
+              <span className={`text-xs font-medium ${
+                problem.difficulty === 'easy' ? 'text-win' :
                 problem.difficulty === 'medium' ? 'text-warning' :
-                'text-error'
+                'text-lose'
               }`}>
                 {problem.difficulty}
               </span>
@@ -141,72 +141,72 @@ export default function ResultsPage() {
         </div>
 
         {/* Time comparison */}
-        <div className="grid md:grid-cols-2 gap-4 mb-12">
-          <div className={`card p-6 ${didWin ? 'border-success/30' : ''}`}>
-            <div className="text-xs uppercase tracking-wider text-subtle mb-3">Your time</div>
-            <div className="font-mono text-3xl mb-3">{formatTime(playerTime)}</div>
-            <div className={`text-sm ${playerPassed ? 'text-success' : 'text-error'}`}>
+        <div className="grid md:grid-cols-2 gap-6 mb-12">
+          <div className={`card p-8 ${didWin ? 'border-win/30' : ''}`}>
+            <div className="text-xs uppercase tracking-wider text-sub mb-4 font-medium">Your time</div>
+            <div className="font-mono text-4xl mb-4 text-text">{formatTime(playerTime)}</div>
+            <div className={`text-sm font-medium ${playerPassed ? 'text-win' : 'text-lose'}`}>
               {playerPassed ? 'All tests passed' : 'Some tests failed'}
             </div>
           </div>
 
-          <div className={`card p-6 ${!didWin && match.winner !== 'draw' ? 'border-error/30' : ''}`}>
-            <div className="text-xs uppercase tracking-wider text-subtle mb-3">Opponent time</div>
-            <div className="font-mono text-3xl mb-3">{formatTime(opponentTime)}</div>
-            <div className={`text-sm ${opponentPassed ? 'text-success' : 'text-error'}`}>
+          <div className={`card p-8 ${!didWin && match.winner !== 'draw' ? 'border-lose/30' : ''}`}>
+            <div className="text-xs uppercase tracking-wider text-sub mb-4 font-medium">Opponent time</div>
+            <div className="font-mono text-4xl mb-4 text-text">{formatTime(opponentTime)}</div>
+            <div className={`text-sm font-medium ${opponentPassed ? 'text-win' : 'text-lose'}`}>
               {opponentPassed ? 'All tests passed' : 'Some tests failed'}
             </div>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid md:grid-cols-3 gap-4 mb-12">
-          <div className="card p-4">
-            <div className="text-2xl font-mono mb-1">
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          <div className="card p-6">
+            <div className="text-3xl font-mono mb-2 text-text">
               {playerPassed ? problem.test_cases.length : 0}/{problem.test_cases.length}
             </div>
-            <div className="text-xs text-subtle">Tests passed</div>
+            <div className="text-xs text-sub font-medium">Tests passed</div>
           </div>
-          <div className="card p-4">
-            <div className="text-2xl font-mono mb-1">
+          <div className="card p-6">
+            <div className="text-3xl font-mono mb-2 text-text">
               {playerTime ? Math.floor(playerTime / 1000) : 0}s
             </div>
-            <div className="text-xs text-subtle">Total time</div>
+            <div className="text-xs text-sub font-medium">Total time</div>
           </div>
-          <div className="card p-4">
-            <div className="text-2xl font-mono mb-1 text-accent">
+          <div className="card p-6">
+            <div className="text-3xl font-mono mb-2 text-accent">
               +{match[`${playerRole}_points`] || 0}
             </div>
-            <div className="text-xs text-subtle">Points earned</div>
+            <div className="text-xs text-sub font-medium">Points earned</div>
           </div>
         </div>
 
         {/* Leaderboard */}
         {leaderboard.length > 0 && (
           <div className="mb-12">
-            <h2 className="text-sm uppercase tracking-wider text-subtle mb-6">
+            <h2 className="text-xs uppercase tracking-wider text-sub mb-8 font-medium">
               Leaderboard — {problem.title}
             </h2>
-            <div className="space-y-px bg-base-lighter rounded-lg overflow-hidden">
+            <div className="space-y-1">
               {leaderboard.map((entry, idx) => (
                 <div
                   key={entry.id}
-                  className="bg-base p-4 flex items-center justify-between hover:bg-base-light transition-colors"
+                  className="card p-5 flex items-center justify-between hover:border-[#D1CFC9] transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`w-6 text-center font-mono text-sm ${
-                      idx === 0 ? 'text-success' :
-                      idx === 1 ? 'text-stone-400' :
+                    <div className={`w-8 text-center font-mono text-sm font-medium ${
+                      idx === 0 ? 'text-win' :
+                      idx === 1 ? 'text-sub' :
                       idx === 2 ? 'text-warning' :
-                      'text-subtle'
+                      'text-sub'
                     }`}>
                       {idx + 1}
                     </div>
-                    <span className="text-sm">{entry.username}</span>
+                    <span className="text-sm text-text font-medium">{entry.username}</span>
                   </div>
                   <div className="flex items-center gap-6 text-sm">
-                    <span className="text-subtle">{entry.language}</span>
-                    <span className="font-mono text-muted">{formatTime(entry.time_ms)}</span>
+                    <span className="text-sub">{entry.language}</span>
+                    <span className="font-mono text-text">{formatTime(entry.time_ms)}</span>
                   </div>
                 </div>
               ))}
@@ -215,16 +215,16 @@ export default function ResultsPage() {
         )}
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex gap-4">
           <button
             onClick={handlePlayAgain}
-            className="btn-primary px-6 py-3"
+            className="btn-primary"
           >
             Play again
           </button>
           <button
             onClick={handleGoHome}
-            className="btn-secondary px-6 py-3"
+            className="btn-secondary"
           >
             Back to home
           </button>

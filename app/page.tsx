@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, UserProfile } from '@/lib/supabase'
 import { getPlayerId } from '@/lib/session'
+import ModeSelectionModal from '@/app/components/ModeSelectionModal'
 
 export default function Home() {
   const router = useRouter()
@@ -11,6 +12,7 @@ export default function Home() {
   const [recentMatches, setRecentMatches] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [showModeModal, setShowModeModal] = useState(false)
 
   const updatePresence = async () => {
     try {
@@ -81,99 +83,106 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [])
 
-  const handleFindMatch = async () => {
-    setIsLoading(true)
-    router.push('/queue')
+  const handleFindMatch = () => {
+    setShowModeModal(true)
+  }
+
+  const handleSelectMode = (mode: 'pvp' | 'bot') => {
+    setShowModeModal(false)
+    router.push(`/queue?mode=${mode}`)
   }
 
   return (
-    <main className="min-h-screen bg-base relative overflow-hidden">
-      {/* Ambient background effect */}
-      <div className="fixed inset-0 bg-gradient-to-br from-accent/5 via-transparent to-primary/5 pointer-events-none"></div>
-
+    <>
+      <ModeSelectionModal
+        isOpen={showModeModal}
+        onClose={() => setShowModeModal(false)}
+        onSelectMode={handleSelectMode}
+      />
+      <main className="min-h-screen bg-bg">
       {/* Header */}
-      <header className="relative border-b border-base-border backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="text-xl font-bold text-gradient">CodeClash</div>
+      <header className="border-b border-border">
+        <div className="max-w-6xl mx-auto px-8 py-6 flex items-center justify-between">
+          <div className="text-xl font-semibold text-text">CodeClash</div>
           <div className="flex items-center gap-6">
             {userProfile && (
               <button
                 onClick={() => router.push('/leaderboard')}
-                className="flex items-center gap-3 px-4 py-2 rounded-lg bg-base-lighter border border-base-border hover:border-gray-600 transition-all"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg bg-card border border-border hover:border-[#D1CFC9] transition-colors"
               >
                 <div className="text-right">
-                  <div className="text-xs text-subtle">Your points</div>
+                  <div className="text-xs text-sub">Your points</div>
                   <div className="text-sm font-mono text-accent font-semibold">{userProfile.total_points}</div>
                 </div>
-                <span className="text-subtle">→</span>
+                <span className="text-sub">→</span>
               </button>
             )}
             <div className="flex items-center gap-2 text-sm">
-              <span className="status-dot bg-success"></span>
-              <span className="text-gray-300">{playersOnline} online</span>
+              <span className="status-dot bg-win"></span>
+              <span className="text-text">{playersOnline} online</span>
             </div>
           </div>
         </div>
       </header>
 
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-32 pb-24">
-        <div className="text-center animate-slide-up">
-          <h1 className="text-6xl md:text-7xl font-bold tracking-tight mb-6 text-gradient">
-            1v1 CODE BATTLE
+      <section className="max-w-4xl mx-auto px-8 pt-24 pb-32">
+        <div className="text-center">
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6 text-text">
+            1v1 Code Battle
           </h1>
-          <p className="text-2xl text-gray-300 mb-4 font-semibold">
+          <p className="text-xl text-text mb-3 font-medium">
             Race. Code. Win.
           </p>
-          <p className="text-lg text-muted max-w-2xl mx-auto mb-12">
+          <p className="text-base text-sub max-w-xl mx-auto mb-12 leading-relaxed">
             Real-time algorithmic duels against developers worldwide.
             Same problem, one winner. Prove you&apos;re faster.
           </p>
 
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-4 mb-8">
             <button
               onClick={handleFindMatch}
               disabled={isLoading}
-              className="btn-primary px-8 py-4 text-lg"
+              className="btn-primary px-8 py-4 text-base"
             >
               {isLoading ? 'Finding match...' : 'Start Battle'}
             </button>
           </div>
 
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <div className="status-dot bg-success"></div>
-            <span className="text-sm text-muted">{playersOnline} players online</span>
+          <div className="flex items-center justify-center gap-2">
+            <span className="status-dot bg-win"></span>
+            <span className="text-sm text-sub">{playersOnline} players online</span>
           </div>
         </div>
       </section>
 
       {/* How it works */}
-      <section className="max-w-6xl mx-auto px-6 py-20">
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="card-hover p-8">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4">
-              <span className="text-2xl">⚡</span>
+      <section className="max-w-4xl mx-auto px-8 py-24">
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="card p-8">
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center mb-6">
+              <span className="text-xl">⚡</span>
             </div>
-            <h3 className="text-lg font-semibold mb-2">Instant Matching</h3>
-            <p className="text-muted text-sm">
+            <h3 className="text-base font-semibold mb-3 text-text">Instant Matching</h3>
+            <p className="text-sub text-sm leading-relaxed">
               Find an opponent in seconds. No queue, no wait. Just pure competition.
             </p>
           </div>
-          <div className="card-hover p-8">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4">
-              <span className="text-2xl">⏱️</span>
+          <div className="card p-8">
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center mb-6">
+              <span className="text-xl">⏱️</span>
             </div>
-            <h3 className="text-lg font-semibold mb-2">Code Under Pressure</h3>
-            <p className="text-muted text-sm">
+            <h3 className="text-base font-semibold mb-3 text-text">Code Under Pressure</h3>
+            <p className="text-sub text-sm leading-relaxed">
               Timer starts the moment you see the problem. Every second counts.
             </p>
           </div>
-          <div className="card-hover p-8">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4">
-              <span className="text-2xl">🏆</span>
+          <div className="card p-8">
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center mb-6">
+              <span className="text-xl">🏆</span>
             </div>
-            <h3 className="text-lg font-semibold mb-2">Winner Takes All</h3>
-            <p className="text-muted text-sm">
+            <h3 className="text-base font-semibold mb-3 text-text">Winner Takes All</h3>
+            <p className="text-sub text-sm leading-relaxed">
               First to submit a passing solution wins. Claim your spot on the leaderboard.
             </p>
           </div>
@@ -182,33 +191,33 @@ export default function Home() {
 
       {/* Recent activity */}
       {recentMatches.length > 0 && (
-        <section className="max-w-4xl mx-auto px-6 py-20 border-t border-base-border">
-          <h2 className="text-sm uppercase tracking-wider text-subtle mb-8">Recent battles</h2>
-          <div className="space-y-2">
+        <section className="max-w-4xl mx-auto px-8 py-24 border-t border-border">
+          <h2 className="text-xs uppercase tracking-wider text-sub mb-10 font-medium">Recent battles</h2>
+          <div className="space-y-1">
             {recentMatches.map((match) => (
               <div
                 key={match.id}
-                className="card-hover p-4 flex items-center justify-between text-sm"
+                className="card p-5 flex items-center justify-between text-sm hover:border-[#D1CFC9] transition-colors"
               >
                 <div className="flex items-center gap-4">
-                  <span className="font-mono text-xs text-subtle">
+                  <span className="font-mono text-xs text-sub">
                     {new Date(match.created_at).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
                   </span>
-                  <span className="text-gray-200 font-medium">
+                  <span className="text-text font-medium">
                     {(match.problems as any)?.title || 'Problem'}
                   </span>
                 </div>
                 <div className="flex items-center gap-6">
-                  <span className="text-muted font-mono text-sm">
+                  <span className="text-sub font-mono text-sm">
                     {match.player1_time && Math.floor(match.player1_time / 1000)}s
-                    <span className="mx-2 text-subtle">vs</span>
+                    <span className="mx-2 text-sub">vs</span>
                     {match.player2_time && Math.floor(match.player2_time / 1000)}s
                   </span>
-                  <span className={`text-xs font-semibold ${
-                    match.winner === 'draw' ? 'text-warning' : 'text-success'
+                  <span className={`text-xs font-medium ${
+                    match.winner === 'draw' ? 'text-sub' : match.winner ? 'text-win' : 'text-lose'
                   }`}>
                     {match.winner === 'draw' ? 'Draw' : 'Won'}
                   </span>
@@ -220,29 +229,29 @@ export default function Home() {
       )}
 
       {/* Features */}
-      <section className="max-w-4xl mx-auto px-6 py-20 border-t border-base-border">
-        <div className="grid md:grid-cols-2 gap-x-12 gap-y-8">
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">⚡ Real-time competition</h3>
-            <p className="text-sm text-muted leading-relaxed">
+      <section className="max-w-4xl mx-auto px-8 py-24 border-t border-border">
+        <div className="grid md:grid-cols-2 gap-x-16 gap-y-10">
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold text-text">Real-time competition</h3>
+            <p className="text-sm text-sub leading-relaxed">
               Watch opponent status live. Know when they&apos;re testing, debugging, or submitting.
             </p>
           </div>
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">🎯 Instant validation</h3>
-            <p className="text-sm text-muted leading-relaxed">
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold text-text">Instant validation</h3>
+            <p className="text-sm text-sub leading-relaxed">
               Run test cases as you code. Catch errors before submitting your final solution.
             </p>
           </div>
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">🤖 AI-powered hints</h3>
-            <p className="text-sm text-muted leading-relaxed">
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold text-text">AI-powered hints</h3>
+            <p className="text-sm text-sub leading-relaxed">
               Get guidance when stuck. Learn better approaches without spoiling the solution.
             </p>
           </div>
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">🏆 Global leaderboards</h3>
-            <p className="text-sm text-muted leading-relaxed">
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold text-text">Global leaderboards</h3>
+            <p className="text-sm text-sub leading-relaxed">
               Compete for the fastest time on each problem. Track your ranking over time.
             </p>
           </div>
@@ -250,13 +259,14 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-base-border mt-20">
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          <p className="text-sm text-subtle">
+      <footer className="border-t border-border">
+        <div className="max-w-4xl mx-auto px-8 py-12">
+          <p className="text-sm text-sub">
             Built for developers who thrive under pressure
           </p>
         </div>
       </footer>
     </main>
+    </>
   )
 }
