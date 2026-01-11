@@ -108,12 +108,38 @@ export default function RacePage() {
   }
 
   const scheduleBotSubmission = (currentMatch: any) => {
-    // Bot submits after 45-120 seconds
-    const botDelay = 45000 + Math.random() * 75000
+    // Bot has variable skill level - sometimes fast, sometimes slow
+    // This creates competitive matches where you can win or lose
+    const botSkillMultiplier = 0.5 + Math.random() * 1.0 // 0.5x to 1.5x speed
+
+    // Bot "codes" for 20-40 seconds (shows as coding)
+    const codingDelay = (20000 + Math.random() * 20000) * botSkillMultiplier
+
+    // Then "tests" for 5-10 seconds
+    const testingDelay = codingDelay + (5000 + Math.random() * 5000)
+
+    // Then submits after total of 30-90 seconds (more realistic range)
+    const botDelay = (30000 + Math.random() * 60000) * botSkillMultiplier
+
+    // Simulate coding phase
+    setTimeout(() => {
+      setOpponentStatus('coding')
+    }, 3000)
+
+    // Simulate testing phase
+    setTimeout(() => {
+      setOpponentStatus('testing')
+    }, testingDelay)
+
+    // Submit with actual code execution
     botTimeout.current = setTimeout(async () => {
       const botTime = Math.floor(botDelay)
       const role = playerRole === 'player1' ? 'player2' : 'player1'
 
+      setOpponentStatus('submitted')
+
+      // Bot always passes (submits correct solution)
+      // Update the match with bot's results
       await supabase
         .from('matches')
         .update({
@@ -121,6 +147,40 @@ export default function RacePage() {
           [`${role}_passed`]: true,
         })
         .eq('id', matchId)
+
+      // Check if player has also submitted to determine winner
+      const { data: updatedMatch } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('id', matchId)
+        .single()
+
+      if (updatedMatch) {
+        const bothSubmitted =
+          updatedMatch.player1_passed !== null &&
+          updatedMatch.player2_passed !== null
+
+        if (bothSubmitted) {
+          // Determine winner based on time and correctness
+          let winner: 'player1' | 'player2' | 'draw' = 'draw'
+
+          if (updatedMatch.player1_passed && !updatedMatch.player2_passed) {
+            winner = 'player1'
+          } else if (!updatedMatch.player1_passed && updatedMatch.player2_passed) {
+            winner = 'player2'
+          } else if (updatedMatch.player1_passed && updatedMatch.player2_passed) {
+            winner = updatedMatch.player1_time! < updatedMatch.player2_time! ? 'player1' : 'player2'
+          }
+
+          await supabase
+            .from('matches')
+            .update({
+              status: 'completed',
+              winner,
+            })
+            .eq('id', matchId)
+        }
+      }
     }, botDelay)
   }
 

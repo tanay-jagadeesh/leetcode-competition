@@ -100,16 +100,29 @@ export default function QueuePage() {
         // After 30 seconds, match with a bot
         botTimeout = setTimeout(async () => {
           const botId = `bot_${uuidv4()}`
-          const { error } = await supabase
-            .from('matches')
-            .update({
-              player2_id: botId,
-              status: 'active'
-            })
-            .eq('id', newMatch.id)
 
-          if (!error) {
+          try {
+            const { error } = await supabase
+              .from('matches')
+              .update({
+                player2_id: botId,
+                status: 'active'
+              })
+              .eq('id', newMatch.id)
+
+            if (error) {
+              console.error('Bot match error:', error)
+            }
+
+            // Redirect regardless (optimistic)
             setStatus('matched')
+            setCurrentMatchId(newMatch.id)
+            setTimeout(() => router.push(`/race/${newMatch.id}`), 1000)
+          } catch (err) {
+            console.error('Bot match failed:', err)
+            // Still try to redirect
+            setStatus('matched')
+            setCurrentMatchId(newMatch.id)
             setTimeout(() => router.push(`/race/${newMatch.id}`), 1000)
           }
         }, 30000)
@@ -171,7 +184,7 @@ export default function QueuePage() {
               Searching for a worthy opponent
             </p>
             <p className="text-sm text-gray-500 mb-8">
-              {waitTime}s elapsed • Bot match in {Math.max(0, 30 - waitTime)}s
+              {waitTime}s elapsed {waitTime < 30 && `• Bot match in ${30 - waitTime}s`}
             </p>
           </>
         )}
