@@ -18,7 +18,7 @@ export async function chatWithAI(
   userCode: string,
   userQuestion: string,
   conversationHistory: Array<{ role: 'user' | 'assistant', content: string }>
-): Promise<string> {
+): Promise<{ text: string; pointsRemaining?: number; hintsAvailable?: number }> {
   const response = await fetch('/api/ai-chat', {
     method: 'POST',
     headers: {
@@ -30,7 +30,7 @@ export async function chatWithAI(
       userCode,
       userQuestion,
       conversationHistory,
-      clientId: getPlayerId(), // Use player ID for rate limiting
+      clientId: getPlayerId(), // Use player ID for rate limiting and points checking
     }),
   })
 
@@ -45,7 +45,12 @@ export async function chatWithAI(
     throw new Error('❌ Invalid response from AI service. Please try again.')
   }
 
-  return data.text
+  // Return text along with updated points info if available
+  return {
+    text: data.text,
+    pointsRemaining: data.pointsRemaining,
+    hintsAvailable: data.hintsAvailable
+  }
 }
 
 export async function getHint(
@@ -68,5 +73,6 @@ ${failedTest.error ? `- Error: ${failedTest.error}` : ''}
 
 Can you give me a hint about what might be wrong?`
 
-  return chatWithAI(problemTitle, problemDescription, userCode, question, [])
+  const result = await chatWithAI(problemTitle, problemDescription, userCode, question, [])
+  return result.text
 }

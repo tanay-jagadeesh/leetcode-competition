@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Hint cost in points
+const HINT_COST = 5
 
 // Simple in-memory rate limiter
 const rateLimiter = {
@@ -55,6 +62,30 @@ export async function POST(req: NextRequest) {
         { error: '❌ Missing required fields: problemTitle, problemDescription, userCode, and userQuestion are required.' },
         { status: 400 }
       )
+    }
+
+    // Check if user has enough points for a hint
+    if (clientId) {
+      const supabase = createClient(supabaseUrl, supabaseAnonKey)
+      const { data: userProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('total_points')
+        .eq('id', clientId)
+        .single()
+
+      if (!profileError && userProfile) {
+        const availableHints = Math.floor(userProfile.total_points / HINT_COST)
+        if (availableHints < 1) {
+          return NextResponse.json(
+            { 
+              error: `❌ Not enough points! You need ${HINT_COST} points per hint. You have ${userProfile.total_points} points. Win matches to earn more points!`,
+              pointsRemaining: userProfile.total_points,
+              hintsAvailable: 0
+            },
+            { status: 403 }
+          )
+        }
+      }
     }
 
     // Rate limiting by client ID (use default if not provided)
@@ -154,10 +185,40 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const responseText = choice.message.content ||
-      'I can help you think through this problem. What specifically are you struggling with?'
+        const responseText = choice.message.content ||
+          'I can help you think through this problem. What specifically are you struggling with?'
 
-    return NextResponse.json({ text: responseText.trim() })
+        // Deduct points for hint usage
+        if (clientId) {
+          const supabase = createClient(supabaseUrl, supabaseAnonKey)
+          const { data: userProfile } = await supabase
+            .from('user_profiles')
+            .select('total_points')
+            .eq('id', clientId)
+            .single()
+
+          if (userProfile && userProfile.total_points >= HINT_COST) {
+            await supabase
+              .from('user_profiles')
+              .update({ 
+                total_points: userProfile.total_points - HINT_COST,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', clientId)
+
+            const newPoints = userProfile.total_points - HINT_COST
+            const remainingHints = Math.floor(newPoints / HINT_COST)
+
+            return NextResponse.json({ 
+              text: responseText.trim(),
+              pointsRemaining: newPoints,
+              hintsAvailable: remainingHints,
+              hintCost: HINT_COST
+            })
+          }
+        }
+
+        return NextResponse.json({ text: responseText.trim() })
   } catch (error) {
     console.error('Error in AI chat:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'

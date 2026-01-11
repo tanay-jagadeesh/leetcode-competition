@@ -108,13 +108,16 @@ export default function Home() {
             {userProfile && (
               <button
                 onClick={() => router.push('/leaderboard')}
-                className="flex items-center gap-3 px-4 py-2 rounded-lg bg-card border border-border hover:border-[#D1CFC9] transition-colors"
+                className="flex items-center gap-4 px-5 py-3 rounded-lg bg-card border border-border hover:border-accent/30 hover:shadow-md transition-all group"
               >
                 <div className="text-right">
-                  <div className="text-xs text-sub">Your points</div>
-                  <div className="text-sm font-mono text-accent font-semibold">{userProfile.total_points}</div>
+                  <div className="text-xs text-sub font-medium mb-1">Total Points</div>
+                  <div className="text-2xl font-mono text-accent font-bold tabular-nums">{userProfile.total_points}</div>
+                  <div className="text-[10px] text-sub mt-0.5">
+                    {Math.floor(userProfile.total_points / 5)} hints available
+                  </div>
                 </div>
-                <span className="text-sub">→</span>
+                <span className="text-sub group-hover:text-accent transition-colors text-lg">→</span>
               </button>
             )}
             <div className="flex items-center gap-2 text-sm">
@@ -134,10 +137,26 @@ export default function Home() {
           <p className="text-xl text-text mb-3 font-medium">
             Race. Code. Win.
           </p>
-          <p className="text-base text-sub max-w-xl mx-auto mb-12 leading-relaxed">
+          <p className="text-base text-sub max-w-xl mx-auto mb-8 leading-relaxed">
             Real-time algorithmic duels against developers worldwide.
             Same problem, one winner. Prove you&apos;re faster.
           </p>
+
+          {/* Points Display - Prominent */}
+          {userProfile && (
+            <div className="inline-flex items-center gap-6 px-6 py-4 mb-12 bg-card border border-border rounded-lg">
+              <div className="text-center">
+                <div className="text-xs uppercase tracking-wider text-sub font-medium mb-1">Your Points</div>
+                <div className="text-3xl font-mono text-accent font-bold tabular-nums">{userProfile.total_points}</div>
+              </div>
+              <div className="h-12 w-px bg-border"></div>
+              <div className="text-center">
+                <div className="text-xs uppercase tracking-wider text-sub font-medium mb-1">Available Hints</div>
+                <div className="text-3xl font-mono text-text font-bold tabular-nums">{Math.floor(userProfile.total_points / 5)}</div>
+                <div className="text-[10px] text-sub mt-0.5">5 points per hint</div>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-center gap-4 mb-8">
             <button

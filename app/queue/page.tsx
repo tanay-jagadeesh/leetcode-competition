@@ -42,6 +42,21 @@ function QueueContent() {
       if (!isActive || matchMode !== 'pvp') return false
 
       try {
+        // First, clean up any old waiting matches (older than 2 minutes) to prevent stale matches
+        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+        await supabase
+          .from('matches')
+          .delete()
+          .eq('status', 'waiting')
+          .lt('created_at', twoMinutesAgo)
+
+        // Also clean up any waiting matches we created (safety check)
+        await supabase
+          .from('matches')
+          .delete()
+          .eq('status', 'waiting')
+          .eq('player1_id', playerId)
+
         const { data: waitingMatches } = await supabase
           .from('matches')
           .select('*')
@@ -54,8 +69,14 @@ function QueueContent() {
         if (waitingMatches && waitingMatches.length > 0) {
           const match = waitingMatches[0]
 
-          // Try to claim this match
-          const { error } = await supabase
+          // Double-check: ensure we're not joining our own match
+          if (match.player1_id === playerId) {
+            console.log('Prevented self-match')
+            return false
+          }
+
+          // Try to claim this match atomically
+          const { data: updatedMatch, error } = await supabase
             .from('matches')
             .update({
               player2_id: playerId,
@@ -63,11 +84,14 @@ function QueueContent() {
             })
             .eq('id', match.id)
             .is('player2_id', null) // Only if still available
+            .neq('player1_id', playerId) // Extra safety check
+            .select()
+            .single()
 
-          if (!error) {
+          if (!error && updatedMatch && updatedMatch.player1_id !== playerId) {
             setStatus('matched')
-            setCurrentMatchId(match.id)
-            setTimeout(() => router.push(`/race/${match.id}`), 800)
+            setCurrentMatchId(updatedMatch.id)
+            setTimeout(() => router.push(`/race/${updatedMatch.id}`), 800)
             return true
           }
         }
@@ -145,20 +169,23 @@ function QueueContent() {
           channelRef.current = channel
 
           // Start polling for new waiting matches every 3 seconds
-          pollingRef.current = setInterval(async () => {
-            if (status === 'matched' || !isActive) {
-              if (pollingRef.current) {
+          // Wait at least 2 seconds before first poll to ensure we're searching
+          setTimeout(() => {
+            pollingRef.current = setInterval(async () => {
+              if (status === 'matched' || !isActive) {
+                if (pollingRef.current) {
+                  clearInterval(pollingRef.current)
+                }
+                return
+              }
+
+              // Check if someone else created a match we can join
+              const joined = await tryJoinExistingMatch()
+              if (joined && pollingRef.current) {
                 clearInterval(pollingRef.current)
               }
-              return
-            }
-
-            // Check if someone else created a match we can join
-            const joined = await tryJoinExistingMatch()
-            if (joined && pollingRef.current) {
-              clearInterval(pollingRef.current)
-            }
-          }, 3000)
+            }, 3000)
+          }, 2000)
         }
       } catch (error) {
         console.error('Error creating match:', error)
@@ -170,9 +197,23 @@ function QueueContent() {
         // Bot mode: create match immediately with bot
         await createMatch()
       } else if (matchMode === 'pvp') {
-        // PvP mode: try to join existing match first, then create if none found
+        // PvP mode: Clean up any stale matches first
+        // Delete any waiting matches we might have created previously
+        await supabase
+          .from('matches')
+          .delete()
+          .eq('player1_id', playerId)
+          .eq('status', 'waiting')
+
+        // Add a small delay to ensure we're actually searching for other players
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        
+        if (!isActive) return
+        
+        // Try to join an existing match from another player
         const joined = await tryJoinExistingMatch()
         if (!joined && isActive) {
+          // No other players found, create a new match and wait
           await createMatch()
         }
       }
@@ -197,18 +238,25 @@ function QueueContent() {
     }
   }, [playerId, router, matchMode, status])
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    // Clean up any matches we created
     if (matchId) {
-      supabase
+      await supabase
         .from('matches')
         .delete()
         .eq('id', matchId)
         .eq('player1_id', playerId)
         .eq('status', 'waiting') // Only delete if still waiting
-        .then(() => router.push('/'))
-    } else {
-      router.push('/')
     }
+    
+    // Also clean up any other waiting matches we might have created
+    await supabase
+      .from('matches')
+      .delete()
+      .eq('player1_id', playerId)
+      .eq('status', 'waiting')
+    
+    router.push('/')
   }
 
   return (

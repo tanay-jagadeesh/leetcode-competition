@@ -41,7 +41,9 @@ export default function ResultsPage() {
       const role = currentPlayerId === currentMatch.player2_id ? 'player2' : 'player1'
       setPlayerRole(role)
 
-      const won = currentMatch.winner === role
+      // Only mark as won if player actually passed tests AND is the winner
+      const playerPassed = currentMatch[`${role}_passed`] === true
+      const won = currentMatch.winner === role && playerPassed
       setDidWin(won)
 
       const { data: leaderboardData } = await supabase
@@ -104,13 +106,13 @@ export default function ResultsPage() {
       <div className="max-w-4xl mx-auto px-8 py-20">
         {/* Result header */}
         <div className="mb-16">
-          {didWin ? (
+          {didWin && playerPassed ? (
             <>
               <div className="text-xs uppercase tracking-wider text-win mb-4 font-medium">Victory</div>
               <h1 className="text-4xl font-semibold mb-4 text-text">You won</h1>
-              <p className="text-sub">Submitted the correct solution first</p>
+              <p className="text-sub">You submitted a correct solution {opponentPassed ? 'faster' : 'first'}</p>
             </>
-          ) : match.winner === 'draw' ? (
+          ) : match.winner === 'draw' || (!playerPassed && !opponentPassed) ? (
             <>
               <div className="text-xs uppercase tracking-wider text-warning mb-4 font-medium">Draw</div>
               <h1 className="text-4xl font-semibold mb-4 text-text">Match incomplete</h1>
@@ -118,9 +120,15 @@ export default function ResultsPage() {
             </>
           ) : (
             <>
-              <div className="text-xs uppercase tracking-wider text-sub mb-4 font-medium">Defeated</div>
+              <div className="text-xs uppercase tracking-wider text-lose mb-4 font-medium">Defeated</div>
               <h1 className="text-4xl font-semibold mb-4 text-text">Opponent won</h1>
-              <p className="text-sub">They submitted a correct solution faster</p>
+              <p className="text-sub">
+                {opponentPassed 
+                  ? playerPassed 
+                    ? 'They submitted a correct solution faster' 
+                    : 'They submitted a correct solution'
+                  : 'Match ended without a winner'}
+              </p>
             </>
           )}
         </div>
