@@ -30,7 +30,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       if (mode === 'login') {
         const { error } = await signIn(email, password)
         if (error) {
-          setError(error.message || 'Failed to sign in. Please check your credentials.')
+          // Check if error is due to unconfirmed email
+          const errorMessage = error.message || ''
+          if (errorMessage.toLowerCase().includes('email') && errorMessage.toLowerCase().includes('confirm')) {
+            setError('Please check your email and click the confirmation link to verify your account before signing in.')
+          } else {
+            setError(error.message || 'Failed to sign in. Please check your credentials.')
+          }
         } else {
           onClose()
           setEmail('')
@@ -51,8 +57,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           setEmail('')
           setPassword('')
           setUsername('')
-          // Show success message
-          alert('Account created! Please check your email to verify your account, then sign in.')
+          // Show success message - email confirmation is handled by Supabase
+          alert('Account created! Please check your email and click the confirmation link to verify your account, then sign in.')
         }
       }
     } catch (err) {
@@ -186,4 +192,5 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     </div>
   )
 }
+
 

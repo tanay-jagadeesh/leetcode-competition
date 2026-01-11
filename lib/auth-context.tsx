@@ -39,7 +39,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/auth-context.tsx:42',message:'Auth state change',data:{event,hasSession:!!session,hasUser:!!session?.user,userConfirmed:session?.user?.email_confirmed_at?true:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+      
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
@@ -47,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Update cached user ID for getPlayerId()
       updateCachedAuthUserId(session?.user?.id ?? null)
 
-      // When user signs in, ensure their profile exists
+      // When user signs in (or email is confirmed), ensure their profile exists
       if (session?.user) {
         ensureUserProfile(session.user.id, session.user.email || 'Anonymous')
       }
@@ -86,30 +90,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/auth-context.tsx:88',message:'signIn called',data:{email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/auth-context.tsx:94',message:'signIn response',data:{hasSession:!!signInData?.session,hasUser:!!signInData?.user,userConfirmed:signInData?.user?.email_confirmed_at?true:false,error:error?.message||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    
+    // Handle specific error for unconfirmed email
+    if (error && error.message?.includes('Email not confirmed')) {
+      return { error: { ...error, message: 'Please check your email and click the confirmation link to verify your account.' } }
+    }
+    
     return { error }
   }
 
   const signUp = async (email: string, password: string, username: string) => {
-    const { error: authError } = await supabase.auth.signUp({
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/auth-context.tsx:96',message:'signUp called',data:{email,hasUsername:!!username},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
+    const { data: signUpData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: { username }, // Store username in metadata
+        emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`
+      }
     })
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/auth-context.tsx:106',message:'signUp response',data:{hasUser:!!signUpData?.user,hasSession:!!signUpData?.session,userConfirmed:signUpData?.user?.email_confirmed_at?true:false,error:authError?.message||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
+    // #endregion
 
     if (authError) {
       return { error: authError }
     }
 
-    // Wait a moment for the user to be created, then update profile
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
+    // If email confirmation is required, user won't have a session yet
+    // But we can still create the profile if user exists
+    if (signUpData?.user) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/auth-context.tsx:116',message:'Creating profile for user',data:{userId:signUpData.user.id,emailConfirmed:!!signUpData.user.email_confirmed_at},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      
       const { error: profileError } = await supabase
         .from('user_profiles')
         .insert({
-          id: user.id,
+          id: signUpData.user.id,
           username: username,
           total_points: 0,
           matches_played: 0,
@@ -118,11 +152,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           last_seen: new Date().toISOString()
         })
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/auth-context.tsx:129',message:'Profile creation result',data:{profileError:profileError?.message||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+
       if (profileError) {
         console.error('Error creating user profile:', profileError)
       }
     }
 
+    // Return null error even if email confirmation is pending
+    // The modal will show the appropriate message
     return { error: null }
   }
 
