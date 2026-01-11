@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import Image from 'next/image'
 import Editor from '@monaco-editor/react'
 import { supabase, Problem, Match } from '@/lib/supabase'
 import { executeCode, TestResult } from '@/lib/code-executor'
@@ -511,7 +512,7 @@ export default function RacePage() {
       {/* Enhanced Top Bar with Competitive Feel */}
       <header className="border-b border-border bg-card">
         <div className="max-w-[1920px] mx-auto px-8 py-5">
-          <div className="grid grid-cols-3 items-center gap-8">
+          <div className="grid grid-cols-4 items-center gap-8">
             {/* Left: Timer - Most Prominent */}
             <div className="flex items-center gap-4">
               <div className="flex flex-col">
@@ -525,8 +526,25 @@ export default function RacePage() {
               )}
             </div>
 
+            {/* Points Display */}
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col">
+                <div className="text-[10px] uppercase tracking-wider text-sub font-medium mb-1">Points</div>
+                <div className="font-mono text-2xl font-bold text-accent tabular-nums">
+                  {userPoints !== null ? userPoints : '...'}
+                </div>
+              </div>
+              <div className="h-8 w-px bg-border"></div>
+              <div className="flex flex-col">
+                <div className="text-[10px] uppercase tracking-wider text-sub font-medium mb-1">Hints</div>
+                <div className="font-mono text-2xl font-bold text-text tabular-nums">
+                  {hintsAvailable}
+                </div>
+              </div>
+            </div>
+
             {/* Center: Competitive Status */}
-            <div className="flex items-center justify-center gap-6">
+            <div className="flex items-center justify-center gap-6 col-span-2">
               {/* Opponent Indicator */}
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -815,16 +833,21 @@ export default function RacePage() {
             <div className="border-b border-border p-6 bg-gradient-to-br from-accent/5 to-accent/10">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
-                  {/* AI Avatar - Person Speaking */}
+                  {/* AI Avatar - Custom avatar image */}
                   <div className="relative">
-                    <div className="w-12 h-12 rounded-full bg-accent/20 border-2 border-accent/30 flex items-center justify-center overflow-hidden">
-                      <svg className="w-8 h-8 text-accent" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                      </svg>
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-accent/30 to-accent/10 border-2 border-accent/40 flex items-center justify-center overflow-hidden shadow-sm">
+                      <Image
+                        src="/ai-avatar.png"
+                        alt="AI Coding Mentor"
+                        width={56}
+                        height={56}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
                     </div>
                     {/* Speaking indicator */}
                     {isSendingMessage && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-win rounded-full border-2 border-card animate-pulse"></div>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-win rounded-full border-2 border-card animate-pulse shadow-sm"></div>
                     )}
                   </div>
                   <div>
@@ -847,10 +870,15 @@ export default function RacePage() {
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {chatMessages.length === 0 ? (
                 <div className="text-center py-20">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent/10 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-accent" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                    </svg>
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-accent/30 to-accent/10 border-2 border-accent/40 flex items-center justify-center shadow-sm overflow-hidden">
+                    <Image
+                      src="/ai-avatar.png"
+                      alt="AI Coding Mentor"
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
                   </div>
                   <p className="text-sm font-semibold text-text mb-2">Start a conversation</p>
                   <p className="text-xs text-sub">
@@ -865,10 +893,15 @@ export default function RacePage() {
                       className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       {msg.role === 'assistant' && (
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center mt-1">
-                          <svg className="w-4 h-4 text-accent" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                          </svg>
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-accent/30 to-accent/10 border border-accent/30 flex items-center justify-center shadow-sm mt-1 overflow-hidden">
+                          <Image
+                            src="/ai-avatar.png"
+                            alt="AI Assistant"
+                            width={40}
+                            height={40}
+                            className="w-full h-full object-cover"
+                            unoptimized
+                          />
                         </div>
                       )}
                       <div
@@ -889,10 +922,15 @@ export default function RacePage() {
                   ))}
                   {isSendingMessage && (
                     <div className="flex justify-start gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-accent" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                        </svg>
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-accent/30 to-accent/10 border border-accent/30 flex items-center justify-center shadow-sm overflow-hidden">
+                        <Image
+                          src="/ai-avatar.png"
+                          alt="AI Assistant"
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-cover"
+                          unoptimized
+                        />
                       </div>
                       <div className="bg-bg border border-border rounded-xl px-4 py-3">
                         <div className="flex gap-1.5">

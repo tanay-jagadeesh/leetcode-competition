@@ -1,4 +1,6 @@
--- Seed 10 LeetCode problems
+-- Seed LeetCode problems
+-- Run this SQL in your Supabase SQL Editor to populate the problems table
+-- This will skip duplicates if problems already exist
 
 -- 1. Two Sum
 INSERT INTO problems (title, description, difficulty, test_cases, starter_code, constraints)

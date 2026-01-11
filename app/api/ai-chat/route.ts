@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Check if user has enough points for a hint
+    // Check if user has enough points for a hint (REQUIRED if clientId provided)
     if (clientId) {
       const supabase = createClient(supabaseUrl, supabaseAnonKey)
       const { data: userProfile, error: profileError } = await supabase
@@ -73,7 +73,34 @@ export async function POST(req: NextRequest) {
         .eq('id', clientId)
         .single()
 
-      if (!profileError && userProfile) {
+      // If profile doesn't exist, create one with 0 points
+      if (profileError && profileError.code === 'PGRST116') {
+        // Profile doesn't exist - create with 0 points
+        const { data: newProfile } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: clientId,
+            username: 'Anonymous',
+            total_points: 0,
+            matches_played: 0,
+            matches_won: 0,
+            problems_solved: 0
+          })
+          .select()
+          .single()
+
+        if (newProfile && newProfile.total_points < HINT_COST) {
+          return NextResponse.json(
+            { 
+              error: `Need more points for hints: price per hint is 5. You currently have ${newProfile.total_points} points. Win matches to earn more points!`,
+              pointsRemaining: newProfile.total_points,
+              hintsAvailable: 0
+            },
+            { status: 403 }
+          )
+        }
+      } else if (!profileError && userProfile) {
+        // Profile exists - check points
         const availableHints = Math.floor(userProfile.total_points / HINT_COST)
         if (availableHints < 1) {
           return NextResponse.json(
@@ -85,7 +112,27 @@ export async function POST(req: NextRequest) {
             { status: 403 }
           )
         }
+      } else {
+        // Error fetching profile - default to blocking
+        return NextResponse.json(
+          { 
+            error: `Need more points for hints: price per hint is 5. Unable to verify your points. Please try again.`,
+            pointsRemaining: 0,
+            hintsAvailable: 0
+          },
+          { status: 403 }
+        )
       }
+    } else {
+      // No clientId provided - block the request
+      return NextResponse.json(
+        { 
+          error: `Need more points for hints: price per hint is 5. Please ensure you're logged in.`,
+          pointsRemaining: 0,
+          hintsAvailable: 0
+        },
+        { status: 403 }
+      )
     }
 
     // Rate limiting by client ID (use default if not provided)
