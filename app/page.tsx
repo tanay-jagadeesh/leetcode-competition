@@ -34,14 +34,14 @@ export default function Home() {
 
   const fetchStats = async () => {
     try {
-      // Count active users (users with last_seen within last 5 minutes)
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+      // Count active users (users with last_seen within last 2 minutes - more accurate)
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
       
-      // First check if last_seen column exists by trying the query
+      // Query for active users with last_seen in the last 2 minutes
       const { count, error: countError } = await supabase
         .from('user_profiles')
         .select('id', { count: 'exact', head: true })
-        .gte('last_seen', fiveMinutesAgo)
+        .gte('last_seen', twoMinutesAgo)
 
       if (countError) {
         // If error, check if it's because last_seen doesn't exist
@@ -103,13 +103,22 @@ export default function Home() {
   }
 
   useEffect(() => {
-    // Update user's last_seen timestamp
+    // Update user's last_seen timestamp immediately
     updatePresence()
     
     fetchStats()
     fetchUserProfile()
-    const interval = setInterval(fetchStats, 10000)
-    return () => clearInterval(interval)
+    
+    // Update presence every 30 seconds (more frequent for accurate tracking)
+    const presenceInterval = setInterval(updatePresence, 30000)
+    
+    // Refresh stats every 10 seconds
+    const statsInterval = setInterval(fetchStats, 10000)
+    
+    return () => {
+      clearInterval(presenceInterval)
+      clearInterval(statsInterval)
+    }
   }, [])
 
   const handleFindMatch = () => {

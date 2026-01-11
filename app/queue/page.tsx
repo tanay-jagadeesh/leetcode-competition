@@ -138,14 +138,28 @@ function QueueContent() {
       if (!isActive) return
 
       try {
-        // Get all problems (no limit) to include all difficulties
-        const { data: problems } = await supabase
+        // Get ALL problems from database - explicitly fetch all rows
+        // Supabase might have a default limit, so we need to be explicit
+        const { data: problems, error: problemsError } = await supabase
           .from('problems')
-          .select('id')
+          .select('id, difficulty')
+          .limit(1000) // Explicitly set a high limit to get all problems
+
+        if (problemsError) {
+          console.error('Error fetching problems:', problemsError)
+          throw problemsError
+        }
 
         if (!problems || problems.length === 0) {
           throw new Error('No problems available')
         }
+
+        console.log(`Loaded ${problems.length} problems from database`)
+        console.log(`Difficulties:`, {
+          easy: problems.filter(p => p.difficulty === 'easy').length,
+          medium: problems.filter(p => p.difficulty === 'medium').length,
+          hard: problems.filter(p => p.difficulty === 'hard').length
+        })
 
         const randomProblem = problems[Math.floor(Math.random() * problems.length)]
 
