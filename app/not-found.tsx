@@ -7,7 +7,7 @@ export default function NotFound() {
         <div className="text-9xl font-bold text-gradient mb-4">404</div>
         <h1 className="text-4xl font-bold text-white mb-4">Page Not Found</h1>
         <p className="text-xl text-gray-400 mb-8">
-          This page doesn't exist or the match has expired.
+          This page doesn&apos;t exist or the match has expired.
         </p>
         <Link
           href="/"

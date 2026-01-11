@@ -54,7 +54,7 @@ export default function Home() {
             1v1 LEETCODE RACE
           </h1>
           <p className="text-2xl text-gray-300 mb-4">
-            Prove You're Faster
+            Prove You&apos;re Faster
           </p>
           <p className="text-lg text-gray-400 mb-12">
             Race against developers worldwide. Same problem. Who solves it first?
@@ -93,7 +93,7 @@ export default function Home() {
               <div className="text-5xl mb-4">🎯</div>
               <h3 className="text-xl font-bold mb-3 text-white">1. Get Matched</h3>
               <p className="text-gray-400">
-                Click Find Match and we'll pair you with an opponent instantly
+                Click Find Match and we&apos;ll pair you with an opponent instantly
               </p>
             </div>
             <div className="bg-dark-200 p-8 rounded-xl border-gradient text-center">
@@ -157,7 +157,7 @@ export default function Home() {
           <div className="bg-dark-200 p-6 rounded-xl border-gradient">
             <h3 className="text-xl font-bold mb-2 text-white">⚡ Real-Time Competition</h3>
             <p className="text-gray-400">
-              See your opponent's progress live. Feel the pressure.
+              See your opponent&apos;s progress live. Feel the pressure.
             </p>
           </div>
           <div className="bg-dark-200 p-6 rounded-xl border-gradient">

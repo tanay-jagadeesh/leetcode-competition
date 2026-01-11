@@ -199,7 +199,7 @@ export default function QueuePage() {
               <h3 className="text-lg font-bold mb-3 text-white">Quick Tips</h3>
               <ul className="text-left text-gray-400 space-y-2 text-sm">
                 <li>• Read the problem carefully before coding</li>
-                <li>• Use "Run Tests" to check sample cases</li>
+                <li>• Use &quot;Run Tests&quot; to check sample cases</li>
                 <li>• Submit when all tests pass</li>
                 <li>• Speed matters - but correctness matters more</li>
                 <li>• Press Ctrl+Enter to submit quickly</li>
