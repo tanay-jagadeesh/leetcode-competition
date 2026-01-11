@@ -40,18 +40,45 @@ export default function Home() {
     try {
       // Count players who are actively playing (in active or waiting matches)
       // Exclude bots and count unique players
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/page.tsx:39',message:'fetchStats called',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       const { data: activeMatches, error: matchesError } = await supabase
         .from('matches')
-        .select('player1_id, player2_id')
+        .select('player1_id, player2_id, status, created_at')
         .in('status', ['active', 'waiting'])
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/page.tsx:45',message:'Query result',data:{matchesCount:activeMatches?.length||0,error:matchesError?.message||null,matches:activeMatches?.map(m=>({p1:m.player1_id,p2:m.player2_id,status:m.status,created:m.created_at}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
+      // #endregion
 
       if (matchesError) {
         console.error('Error counting active players:', matchesError)
         setPlayersOnline(0)
       } else if (activeMatches) {
+        const now = Date.now()
+        const fiveMinutesAgo = now - 5 * 60 * 1000
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/page.tsx:52',message:'Before filtering',data:{totalMatches:activeMatches.length,now,fiveMinutesAgo},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        
         // Collect all unique player IDs (excluding bots)
         const playerIds = new Set<string>()
+        const staleMatches: any[] = []
         activeMatches.forEach(match => {
+          const matchAge = now - new Date(match.created_at).getTime()
+          const isStale = matchAge > 5 * 60 * 1000
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/page.tsx:58',message:'Processing match',data:{p1:match.player1_id,p2:match.player2_id,status:match.status,created:match.created_at,matchAge,isStale,p1IsBot:match.player1_id?.startsWith('bot_'),p2IsBot:match.player2_id?.startsWith('bot_')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D'})}).catch(()=>{});
+          // #endregion
+          
+          // Only count matches created in the last 5 minutes (truly active)
+          if (isStale) {
+            staleMatches.push(match)
+            return
+          }
+          
           // Only count real players, not bots
           if (match.player1_id && typeof match.player1_id === 'string' && !match.player1_id.startsWith('bot_')) {
             playerIds.add(match.player1_id)
@@ -60,6 +87,11 @@ export default function Home() {
             playerIds.add(match.player2_id)
           }
         })
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/page.tsx:75',message:'After filtering',data:{uniquePlayers:playerIds.size,staleMatchesCount:staleMatches.length,playerIds:Array.from(playerIds)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
+        // #endregion
+        
         setPlayersOnline(playerIds.size)
       } else {
         setPlayersOnline(0)
