@@ -37,10 +37,29 @@ const rateLimiter = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { problemTitle, problemDescription, userCode, userQuestion, conversationHistory, clientId } = await req.json()
+    let body
+    try {
+      body = await req.json()
+    } catch (error) {
+      return NextResponse.json(
+        { error: '❌ Invalid JSON in request body.' },
+        { status: 400 }
+      )
+    }
 
-    // Rate limiting by client ID
-    if (!rateLimiter.canMakeRequest(clientId)) {
+    const { problemTitle, problemDescription, userCode, userQuestion, conversationHistory, clientId } = body
+
+    // Validate required fields
+    if (!problemTitle || !problemDescription || !userCode || !userQuestion) {
+      return NextResponse.json(
+        { error: '❌ Missing required fields: problemTitle, problemDescription, userCode, and userQuestion are required.' },
+        { status: 400 }
+      )
+    }
+
+    // Rate limiting by client ID (use default if not provided)
+    const rateLimitId = clientId || 'anonymous'
+    if (!rateLimiter.canMakeRequest(rateLimitId)) {
       return NextResponse.json(
         { error: '⏳ Rate limit reached. Please wait a moment before sending another message.' },
         { status: 429 }
@@ -56,10 +75,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Build conversation context
-    const conversationText = conversationHistory
-      .map((msg: any) => `${msg.role === 'user' ? 'Student' : 'Mentor'}: ${msg.content}`)
-      .join('\n\n')
+    // Build conversation context (handle undefined/null conversationHistory)
+    const conversationText = conversationHistory && Array.isArray(conversationHistory)
+      ? conversationHistory
+          .map((msg: any) => `${msg.role === 'user' ? 'Student' : 'Mentor'}: ${msg.content}`)
+          .join('\n\n')
+      : ''
 
     const prompt = `You are a helpful coding mentor helping a student solve this problem:
 
@@ -71,10 +92,7 @@ Their current code:
 ${userCode}
 \`\`\`
 
-Previous conversation:
-${conversationText}
-
-Student's question: ${userQuestion}
+${conversationText ? `Previous conversation:\n${conversationText}\n\n` : ''}Student's question: ${userQuestion}
 
 Provide helpful guidance without giving away the complete solution. Be concise (2-4 sentences), encouraging, and focus on teaching concepts. If they're stuck, suggest what to think about rather than what to code.`
 
