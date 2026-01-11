@@ -18,13 +18,20 @@ export default function Home() {
 
   const fetchStats = async () => {
     try {
-      // Count active matches (players online)
-      const { count: activeCount } = await supabase
+      // Count active matches (only real matches, not bots)
+      const { data: activeMatches } = await supabase
         .from('matches')
-        .select('*', { count: 'exact', head: true })
+        .select('player1_id, player2_id')
         .eq('status', 'active')
 
-      setPlayersOnline((activeCount || 0) * 2) // 2 players per match
+      // Count only real players (exclude bot matches)
+      let realPlayers = 0
+      activeMatches?.forEach(match => {
+        if (!match.player1_id.startsWith('bot_')) realPlayers++
+        if (match.player2_id && !match.player2_id.startsWith('bot_')) realPlayers++
+      })
+
+      setPlayersOnline(realPlayers)
 
       // Fetch recent completed matches
       const { data: matches } = await supabase
