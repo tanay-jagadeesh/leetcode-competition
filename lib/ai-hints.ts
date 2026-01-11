@@ -133,12 +133,12 @@ export async function chatWithAI(
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY
 
     if (!apiKey) {
-      return "Add NEXT_PUBLIC_GEMINI_API_KEY to enable AI assistant!"
+      return "⚠️ AI assistant not configured. Add NEXT_PUBLIC_GEMINI_API_KEY to Vercel environment variables and redeploy."
     }
 
     // Rate limit check
     if (!rateLimiter.canMakeRequest()) {
-      return "Rate limit reached. Please wait a moment before sending another message."
+      return "⏳ Rate limit reached. Please wait a moment before sending another message."
     }
 
     // Build conversation context
@@ -189,7 +189,17 @@ Provide helpful guidance without giving away the complete solution. Be concise (
     )
 
     if (!response.ok) {
-      throw new Error('Gemini API request failed')
+      const errorData = await response.json().catch(() => ({}))
+      console.error('Gemini API error:', response.status, errorData)
+
+      if (response.status === 400) {
+        return "❌ Invalid API key. Please check your NEXT_PUBLIC_GEMINI_API_KEY in Vercel."
+      }
+      if (response.status === 429) {
+        return "⏳ API rate limit exceeded. Please try again in a moment."
+      }
+
+      throw new Error(`API request failed with status ${response.status}`)
     }
 
     const data = await response.json()
@@ -198,6 +208,9 @@ Provide helpful guidance without giving away the complete solution. Be concise (
     return response_text.trim()
   } catch (error) {
     console.error('Error chatting with AI:', error)
-    return 'I encountered an error. Try asking your question again!'
+    if (error instanceof Error) {
+      return `🔧 Error: ${error.message}. Check console for details.`
+    }
+    return '❌ I encountered an error. Try asking your question again!'
   }
 }
