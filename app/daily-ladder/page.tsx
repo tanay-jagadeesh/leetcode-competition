@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, DailyRanking, UserProfile } from '@/lib/supabase'
 import { getPlayerId } from '@/lib/session'
@@ -23,11 +23,7 @@ export default function DailyLadderPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
 
-  useEffect(() => {
-    loadDailyRankings()
-  }, [selectedDate])
-
-  const loadDailyRankings = async () => {
+  const loadDailyRankings = useCallback(async () => {
     try {
       setIsLoading(true)
       const currentUserId = getPlayerId()
@@ -56,7 +52,11 @@ export default function DailyLadderPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [selectedDate])
+
+  useEffect(() => {
+    loadDailyRankings()
+  }, [loadDailyRankings])
 
   const getBadgeDisplay = (badge: string | null) => {
     if (!badge || !BADGE_INFO[badge]) return null
@@ -163,7 +163,7 @@ export default function DailyLadderPage() {
         ) : (
           <div className="card p-8 mb-12 border-border/50">
             <div className="text-center text-sub">
-              <p className="text-sm mb-2">You haven't played any matches today</p>
+              <p className="text-sm mb-2">You haven&apos;t played any matches today</p>
               <button
                 onClick={() => router.push('/')}
                 className="btn-primary mt-4"
