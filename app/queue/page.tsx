@@ -154,12 +154,10 @@ function QueueContent() {
           throw new Error('No problems available')
         }
 
-        console.log(`Loaded ${problems.length} problems from database`)
-        console.log(`Difficulties:`, {
-          easy: problems.filter(p => p.difficulty === 'easy').length,
-          medium: problems.filter(p => p.difficulty === 'medium').length,
-          hard: problems.filter(p => p.difficulty === 'hard').length
-        })
+        // Debug: Log problem count (remove in production if desired)
+        if (problems.length < 20) {
+          console.warn(`Only ${problems.length} problems found. Expected 25+. Make sure you ran the full seed-problems.sql file.`)
+        }
 
         const randomProblem = problems[Math.floor(Math.random() * problems.length)]
 

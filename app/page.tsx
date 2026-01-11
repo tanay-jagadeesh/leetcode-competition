@@ -34,23 +34,29 @@ export default function Home() {
 
   const fetchStats = async () => {
     try {
-      // Count active users (users with last_seen within last 2 minutes - more accurate)
-      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
-      
-      // Query for active users with last_seen in the last 2 minutes
-      const { count, error: countError } = await supabase
-        .from('user_profiles')
-        .select('id', { count: 'exact', head: true })
-        .gte('last_seen', twoMinutesAgo)
+      // Count players who are actively playing (in active or waiting matches)
+      // Exclude bots and count unique players
+      const { data: activeMatches, error: matchesError } = await supabase
+        .from('matches')
+        .select('player1_id, player2_id')
+        .in('status', ['active', 'waiting'])
 
-      if (countError) {
-        // If error, check if it's because last_seen doesn't exist
-        console.error('Error counting active users:', countError)
-        // Fallback: if last_seen column doesn't exist, return 0
-        // User needs to run migration 004
+      if (matchesError) {
+        console.error('Error counting active players:', matchesError)
         setPlayersOnline(0)
-      } else if (count !== null) {
-        setPlayersOnline(count)
+      } else if (activeMatches) {
+        // Collect all unique player IDs (excluding bots)
+        const playerIds = new Set<string>()
+        activeMatches.forEach(match => {
+          // Only count real players, not bots
+          if (match.player1_id && typeof match.player1_id === 'string' && !match.player1_id.startsWith('bot_')) {
+            playerIds.add(match.player1_id)
+          }
+          if (match.player2_id && typeof match.player2_id === 'string' && !match.player2_id.startsWith('bot_')) {
+            playerIds.add(match.player2_id)
+          }
+        })
+        setPlayersOnline(playerIds.size)
       } else {
         setPlayersOnline(0)
       }
