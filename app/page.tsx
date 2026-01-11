@@ -19,8 +19,12 @@ export default function Home() {
       const playerId = getPlayerId()
       await fetch('/api/ping', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        },
+        body: JSON.stringify({ playerId }),
+        cache: 'no-store'
       })
     } catch (error) {
       // Silently fail - presence tracking is not critical

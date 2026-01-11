@@ -45,17 +45,35 @@ ALTER TABLE problems ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leaderboard ENABLE ROW LEVEL SECURITY;
 
--- Create policies for public read access
+-- Create policies for public read access (drop if exists first to avoid errors)
+DROP POLICY IF EXISTS "Anyone can read problems" ON problems;
 CREATE POLICY "Anyone can read problems" ON problems FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Anyone can read matches" ON matches;
 CREATE POLICY "Anyone can read matches" ON matches FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Anyone can read leaderboard" ON leaderboard;
 CREATE POLICY "Anyone can read leaderboard" ON leaderboard FOR SELECT USING (true);
 
 -- Create policies for insert
+DROP POLICY IF EXISTS "Anyone can insert matches" ON matches;
 CREATE POLICY "Anyone can insert matches" ON matches FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Anyone can insert leaderboard" ON leaderboard;
 CREATE POLICY "Anyone can insert leaderboard" ON leaderboard FOR INSERT WITH CHECK (true);
 
 -- Create policies for update
+DROP POLICY IF EXISTS "Anyone can update matches" ON matches;
 CREATE POLICY "Anyone can update matches" ON matches FOR UPDATE USING (true);
 
--- Enable Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE matches;
+-- Enable Realtime (safe to run multiple times - will ignore if already added)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' 
+    AND tablename = 'matches'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE matches;
+  END IF;
+END $$;

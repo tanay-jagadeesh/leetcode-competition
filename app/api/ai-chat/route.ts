@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_noStore as noStore } from 'next/cache'
 import { createClient } from '@supabase/supabase-js'
+
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -43,6 +48,9 @@ const rateLimiter = {
 }
 
 export async function POST(req: NextRequest) {
+  // Prevent caching - ensure fresh data from Supabase
+  noStore()
+
   try {
     let body
     try {
@@ -75,8 +83,8 @@ export async function POST(req: NextRequest) {
 
       // If profile doesn't exist, create one with 0 points
       if (profileError && profileError.code === 'PGRST116') {
-        // Profile doesn't exist - create with 0 points
-        const { data: newProfile } = await supabase
+        // Profile doesn't exist - create with 0 points and block (0 points < 5)
+        const { data: newProfile, error: insertError } = await supabase
           .from('user_profiles')
           .insert({
             id: clientId,
@@ -89,6 +97,20 @@ export async function POST(req: NextRequest) {
           .select()
           .single()
 
+        if (insertError) {
+          console.error('Error creating user profile:', insertError)
+          // If we can't create profile, still block but with clearer message
+          return NextResponse.json(
+            { 
+              error: `Need more points for hints: price per hint is 5. You currently have 0 points. Win matches to earn more points!`,
+              pointsRemaining: 0,
+              hintsAvailable: 0
+            },
+            { status: 403 }
+          )
+        }
+
+        // New profile created with 0 points - block the request
         if (newProfile && newProfile.total_points < HINT_COST) {
           return NextResponse.json(
             { 
@@ -112,11 +134,12 @@ export async function POST(req: NextRequest) {
             { status: 403 }
           )
         }
-      } else {
-        // Error fetching profile - default to blocking
+      } else if (profileError) {
+        // Error fetching profile - log it and assume 0 points (safer to block)
+        console.error('Error fetching user profile for points check:', profileError)
         return NextResponse.json(
           { 
-            error: `Need more points for hints: price per hint is 5. Unable to verify your points. Please try again.`,
+            error: `Need more points for hints: price per hint is 5. You currently have 0 points. Win matches to earn more points!`,
             pointsRemaining: 0,
             hintsAvailable: 0
           },
