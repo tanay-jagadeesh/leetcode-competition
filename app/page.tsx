@@ -36,15 +36,22 @@ export default function Home() {
     try {
       // Count active users (users with last_seen within last 5 minutes)
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+      
+      // First check if last_seen column exists by trying the query
       const { count, error: countError } = await supabase
         .from('user_profiles')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .gte('last_seen', fiveMinutesAgo)
 
-      if (!countError && count !== null) {
+      if (countError) {
+        // If error, check if it's because last_seen doesn't exist
+        console.error('Error counting active users:', countError)
+        // Fallback: if last_seen column doesn't exist, return 0
+        // User needs to run migration 004
+        setPlayersOnline(0)
+      } else if (count !== null) {
         setPlayersOnline(count)
       } else {
-        console.error('Error counting active users:', countError)
         setPlayersOnline(0)
       }
 

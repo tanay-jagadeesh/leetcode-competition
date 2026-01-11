@@ -138,10 +138,10 @@ function QueueContent() {
       if (!isActive) return
 
       try {
+        // Get all problems (no limit) to include all difficulties
         const { data: problems } = await supabase
           .from('problems')
           .select('id')
-          .limit(10)
 
         if (!problems || problems.length === 0) {
           throw new Error('No problems available')
