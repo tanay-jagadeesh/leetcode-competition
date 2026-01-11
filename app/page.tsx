@@ -4,15 +4,19 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, UserProfile } from '@/lib/supabase'
 import { getPlayerId } from '@/lib/session'
+import { useAuth } from '@/lib/auth-context'
 import ModeSelectionModal from '@/app/components/ModeSelectionModal'
+import AuthModal from '@/app/components/AuthModal'
 
 export default function Home() {
   const router = useRouter()
+  const { user, signOut } = useAuth()
   const [playersOnline, setPlayersOnline] = useState(0)
   const [recentMatches, setRecentMatches] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [showModeModal, setShowModeModal] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
   const updatePresence = async () => {
     try {
@@ -75,7 +79,8 @@ export default function Home() {
 
   const fetchUserProfile = async () => {
     try {
-      const userId = getPlayerId()
+      // Use authenticated user ID if available, otherwise fallback to anonymous
+      const userId = user?.id || getPlayerId()
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -86,11 +91,12 @@ export default function Home() {
         setUserProfile(data)
       } else if (error && error.code === 'PGRST116') {
         // User profile doesn't exist yet - create one with 0 points
+        const username = user?.email?.split('@')[0] || 'Anonymous'
         const { data: newProfile } = await supabase
           .from('user_profiles')
           .insert({
             id: userId,
-            username: 'Anonymous',
+            username: username,
             total_points: 0,
             matches_played: 0,
             matches_won: 0,
@@ -125,7 +131,7 @@ export default function Home() {
       clearInterval(presenceInterval)
       clearInterval(statsInterval)
     }
-  }, [])
+  }, [user]) // Re-fetch profile when auth state changes
 
   const handleFindMatch = () => {
     setShowModeModal(true)
@@ -142,6 +148,10 @@ export default function Home() {
         isOpen={showModeModal}
         onClose={() => setShowModeModal(false)}
         onSelectMode={handleSelectMode}
+      />
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
       />
       <main className="min-h-screen bg-bg">
       {/* Header */}
@@ -164,9 +174,32 @@ export default function Home() {
                 <span className="text-sub group-hover:text-accent transition-colors text-lg">→</span>
               </button>
             )}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="status-dot bg-win"></span>
-              <span className="text-text">{playersOnline} online</span>
+            <div className="flex items-center gap-4">
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-xs text-sub font-medium">{userProfile?.username || user.email?.split('@')[0] || 'User'}</div>
+                    <div className="text-xs text-sub">{user.email}</div>
+                  </div>
+                  <button
+                    onClick={signOut}
+                    className="btn-secondary text-sm px-4 py-2"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="btn-primary text-sm px-5 py-2.5"
+                >
+                  Sign In
+                </button>
+              )}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="status-dot bg-win"></span>
+                <span className="text-text">{playersOnline} online</span>
+              </div>
             </div>
           </div>
         </div>
