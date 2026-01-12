@@ -97,12 +97,18 @@ export default function Home() {
         setPlayersOnline(0)
       }
 
+      // Fetch recent matches for the current user only
+      const currentPlayerId = getPlayerId()
       const { data: matches } = await supabase
         .from('matches')
         .select('*, problems(title)')
         .eq('status', 'completed')
+        .or(`player1_id.eq.${currentPlayerId},player2_id.eq.${currentPlayerId}`)
         .order('created_at', { ascending: false })
         .limit(5)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/page.tsx:106',message:'Recent matches fetched',data:{currentPlayerId,matchesCount:matches?.length||0,matches:matches?.map(m=>({id:m.id,p1:m.player1_id,p2:m.player2_id,created:m.created_at}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       setRecentMatches(matches || [])
     } catch (error) {
       console.error('Error fetching stats:', error)
