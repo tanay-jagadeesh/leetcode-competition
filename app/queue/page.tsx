@@ -49,25 +49,31 @@ function QueueContent() {
           .eq('status', 'waiting')
           .eq('player1_id', playerId)
 
-        // Also clean up any old waiting matches (older than 2 minutes) to prevent stale matches
-        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+        // Also clean up any old waiting matches (older than 1 minute) to prevent stale matches
+        const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString()
         await supabase
           .from('matches')
           .delete()
           .eq('status', 'waiting')
-          .lt('created_at', twoMinutesAgo)
+          .lt('created_at', oneMinuteAgo)
 
         // Now search for matches from OTHER players only who are actively waiting
-        // Only look for matches created in the last 2 minutes (active queue)
-        const { data: waitingMatches } = await supabase
+        // Only look for matches created in the last 1 minute (very recent, active queue)
+        // This ensures we only match with players who are CURRENTLY in queue
+        const { data: waitingMatches, error: queryError } = await supabase
           .from('matches')
           .select('*')
           .eq('status', 'waiting')
           .is('player2_id', null)
           .neq('player1_id', playerId) // CRITICAL: Don't join own match
-          .gt('created_at', twoMinutesAgo) // Only recent matches (active queue)
+          .gt('created_at', oneMinuteAgo) // Only very recent matches (active queue)
           .order('created_at', { ascending: true })
           .limit(1)
+
+        if (queryError) {
+          console.error('Error querying for matches:', queryError)
+          return false
+        }
 
         console.log('Searching queue for other players. Found:', waitingMatches?.length || 0, 'active waiting matches from other players')
 
@@ -76,7 +82,20 @@ function QueueContent() {
 
           // Triple-check: ensure we're not joining our own match
           if (match.player1_id === playerId) {
-            console.log('Prevented self-match - player IDs match')
+            console.log('❌ Prevented self-match - player IDs match')
+            // Delete this invalid match
+            await supabase
+              .from('matches')
+              .delete()
+              .eq('id', match.id)
+            return false
+          }
+
+          // Additional validation: ensure match is very recent (within last 30 seconds)
+          // This prevents matching with stale matches that somehow passed the time filter
+          const matchAge = Date.now() - new Date(match.created_at).getTime()
+          if (matchAge > 30000) { // 30 seconds
+            console.log('❌ Match too old, skipping:', matchAge, 'ms')
             return false
           }
 
@@ -96,7 +115,7 @@ function QueueContent() {
           if (!error && updatedMatch) {
             // Final validation: ensure we didn't match with ourselves
             if (updatedMatch.player1_id === playerId) {
-              console.error('CRITICAL: Matched with own match! Reverting...', {
+              console.error('❌ CRITICAL: Matched with own match! Reverting...', {
                 matchId: updatedMatch.id,
                 player1Id: updatedMatch.player1_id,
                 player2Id: updatedMatch.player2_id,
@@ -113,7 +132,7 @@ function QueueContent() {
               return false
             }
 
-            console.log('Successfully matched with another player:', {
+            console.log('✅ Successfully matched with another player:', {
               matchId: updatedMatch.id,
               opponentId: updatedMatch.player1_id,
               myId: playerId
@@ -124,11 +143,13 @@ function QueueContent() {
             setTimeout(() => router.push(`/race/${updatedMatch.id}`), 800)
             return true
           } else if (error) {
-            console.log('Failed to claim match (likely already taken):', error)
+            console.log('⚠️ Failed to claim match (likely already taken):', error.message)
           }
+        } else {
+          console.log('⏳ No other players found in queue')
         }
       } catch (error) {
-        console.error('Error joining match:', error)
+        console.error('❌ Error joining match:', error)
       }
 
       return false
@@ -246,28 +267,33 @@ function QueueContent() {
         // Bot mode: create match immediately with bot
         await createMatch()
       } else if (matchMode === 'pvp') {
-        // PvP mode: ONLY match if someone else is actively waiting in queue
+        // PvP mode: ONLY join matches created by OTHER players
+        // NEVER create our own match - just keep searching until someone else is waiting
         
-        // Step 1: Aggressively clean up any stale matches first
-        // Delete ALL waiting matches we might have created (from any session)
+        // Step 1: AGGRESSIVELY clean up ALL stale matches
+        // Delete ALL waiting matches we might have created (from any session or player ID)
         await supabase
           .from('matches')
           .delete()
           .eq('player1_id', playerId)
           .eq('status', 'waiting')
 
-        // Also clean up very old matches (older than 2 minutes) from anyone
-        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+        // Delete ALL waiting matches older than 1 minute (more aggressive cleanup)
+        const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString()
         await supabase
           .from('matches')
           .delete()
           .eq('status', 'waiting')
-          .lt('created_at', twoMinutesAgo)
+          .lt('created_at', oneMinuteAgo)
         
         if (!isActive) return
         
-        // Step 2: IMMEDIATELY check if someone else is waiting in queue
-        // This should happen instantly, not after a delay
+        // Step 2: Wait a bit before checking, to ensure cleanup is complete
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        if (!isActive) return
+        
+        // Step 3: Check if someone else is waiting in queue
         const joined = await tryJoinExistingMatch()
         
         if (joined) {
@@ -278,11 +304,29 @@ function QueueContent() {
         
         if (!isActive) return
         
-        // Step 3: No other players found in queue
-        // Create our own match and wait for a REAL player to join
-        // This will NOT match automatically - it waits until someone else joins
-        console.log('⏳ No other players in queue. Creating match and waiting for another player...')
-        await createMatch()
+        // Step 4: No match found - start continuous polling
+        // Keep searching indefinitely until another player creates a match
+        // NEVER create our own match - only join matches from other players
+        console.log('⏳ No other players in queue. Searching continuously for another player...')
+        
+        // Start polling every 2 seconds to check for new players
+        pollingRef.current = setInterval(async () => {
+          if (status === 'matched' || !isActive) {
+            if (pollingRef.current) {
+              clearInterval(pollingRef.current)
+            }
+            return
+          }
+
+          // Check if someone else created a match we can join
+          const joined = await tryJoinExistingMatch()
+          if (joined && pollingRef.current) {
+            console.log('✅ Found another player in queue! Matched.')
+            clearInterval(pollingRef.current)
+          } else {
+            console.log('⏳ Still searching for another player...')
+          }
+        }, 2000) // Poll every 2 seconds
       }
     }
 
