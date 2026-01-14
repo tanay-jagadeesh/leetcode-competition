@@ -159,7 +159,7 @@ export default function RacePage() {
 
       const opponentId = role === 'player1' ? currentMatch.player2_id : currentMatch.player1_id
       if (opponentId?.startsWith('bot_')) {
-        scheduleBotSubmission(currentMatch)
+        scheduleBotSubmission(currentMatch, problemData)
       }
     } catch (error) {
       console.error('Error loading match:', error)
@@ -167,19 +167,49 @@ export default function RacePage() {
     }
   }
 
-  const scheduleBotSubmission = (currentMatch: any) => {
-    const botSkillMultiplier = 0.5 + Math.random() * 1.0
-    const codingDelay = (20000 + Math.random() * 20000) * botSkillMultiplier
-    const testingDelay = codingDelay + (5000 + Math.random() * 5000)
-    const botDelay = (30000 + Math.random() * 60000) * botSkillMultiplier
+  const scheduleBotSubmission = (currentMatch: any, problemData: Problem) => {
+    // Get problem difficulty for realistic timing
+    const problemDifficulty = problemData?.difficulty || 'medium'
+    
+    // Difficulty-based base time multipliers (in milliseconds)
+    // Easy: 3-6 minutes, Medium: 4-8 minutes, Hard: 6-12 minutes
+    const difficultyMultipliers = {
+      easy: { min: 180000, max: 360000 },      // 3-6 minutes
+      medium: { min: 240000, max: 480000 },   // 4-8 minutes
+      hard: { min: 360000, max: 720000 }      // 6-12 minutes
+    }
+    
+    const baseTiming = difficultyMultipliers[problemDifficulty] || difficultyMultipliers.medium
+    
+    // Add skill variation (0.7 to 1.3 multiplier for realistic variation)
+    const botSkillMultiplier = 0.7 + Math.random() * 0.6
+    
+    // Calculate realistic delays
+    const baseDelay = baseTiming.min + Math.random() * (baseTiming.max - baseTiming.min)
+    const botDelay = Math.floor(baseDelay * botSkillMultiplier)
+    
+    // Status transition delays (more realistic progression)
+    const codingStartDelay = 5000 + Math.random() * 5000  // Start coding after 5-10 seconds
+    const codingDuration = botDelay * 0.6  // Spend ~60% of time coding
+    const testingStartDelay = codingStartDelay + codingDuration
+    const testingDuration = botDelay * 0.3  // Spend ~30% of time testing
+    const finalDelay = botDelay - (testingStartDelay + testingDuration)  // Remaining time
 
-    setTimeout(() => setOpponentStatus('coding'), 3000)
-    setTimeout(() => setOpponentStatus('testing'), testingDelay)
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/race/[matchId]/page.tsx:170',message:'Bot submission scheduled',data:{problemDifficulty,baseTiming,botSkillMultiplier,botDelayMs:botDelay,botDelayMinutes:(botDelay/60000).toFixed(2),codingStartDelay,testingStartDelay},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
+    setTimeout(() => setOpponentStatus('coding'), codingStartDelay)
+    setTimeout(() => setOpponentStatus('testing'), testingStartDelay)
 
     botTimeout.current = setTimeout(async () => {
-      const botTime = Math.floor(botDelay)
+      const botTime = botDelay
       const role = playerRole === 'player1' ? 'player2' : 'player1'
       setOpponentStatus('submitted')
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/57ea0f00-4069-46d2-8141-8d61c6e09443',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/race/[matchId]/page.tsx:200',message:'Bot submitting solution',data:{botTimeMs:botTime,botTimeMinutes:(botTime/60000).toFixed(2),role,problemDifficulty},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       await supabase
         .from('matches')
